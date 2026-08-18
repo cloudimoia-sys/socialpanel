@@ -163,6 +163,50 @@ export class UploadPostPublisher implements PublishProvider {
   }
 
   /**
+   * Página de Facebook cuya analítica se consulta.
+   *
+   * Con una sola página no se pregunta nada: elegir por el usuario lo obvio
+   * es mejor producto que un desplegable de un solo elemento. Con varias sí
+   * hace falta decidir, y eso es una preferencia que habría que guardar — de
+   * momento se explica en vez de escoger una al azar y enseñar números de la
+   * página equivocada, que es el fallo caro aquí.
+   */
+  private async facebookPage(
+    tenantRef: string,
+    cred: Credential,
+  ): Promise<{ id?: string; reason?: string }> {
+    let pages: { id?: string; name?: string }[];
+
+    try {
+      const body = await call<{ pages?: { id?: string; name?: string }[] }>(
+        `/uploadposts/facebook/pages?user=${encodeURIComponent(tenantRef)}`,
+        cred,
+      );
+      pages = body.pages ?? [];
+    } catch (cause) {
+      // Que no se pueda listar las páginas deja a Facebook sin métricas, no a
+      // todas las redes: el fallo se degrada a esta sola tarjeta.
+      log.warn("no se pudieron listar las paginas de facebook", { error: String(cause) });
+      return { reason: "No se pudo consultar tus páginas de Facebook." };
+    }
+
+    const usable = pages.filter((p): p is { id: string; name?: string } => Boolean(p.id));
+
+    if (usable.length === 0) {
+      return {
+        reason:
+          "No hay ninguna página de Facebook conectada. Al conectar Facebook hay que " +
+          "elegir la página del negocio, no solo el perfil personal.",
+      };
+    }
+
+    if (usable.length === 1) return { id: usable[0]!.id };
+
+    const names = usable.map((p) => p.name ?? p.id).join(", ");
+    return { reason: `Tienes varias páginas conectadas (${names}) y aún no se puede elegir cuál medir.` };
+  }
+
+  /**
    * Métricas de cada red conectada.
    *
    * La API responde un objeto con una entrada por red, y cada una puede fallar
@@ -178,10 +222,27 @@ export class UploadPostPublisher implements PublishProvider {
     if (platforms.length === 0) return [];
 
     const query = new URLSearchParams({ platforms: platforms.join(",") });
+
+    // Facebook no mide "la cuenta" sino una página concreta, así que exige su
+    // identificador aparte. No se le pide al usuario: el ID que Facebook
+    // enseña en la URL del navegador NO es el que acepta su API, así que
+    // pedirlo a mano garantiza que lo pegue mal. Se resuelve preguntando qué
+    // páginas hay conectadas de verdad.
+    let facebookIssue: string | undefined;
+    if (platforms.includes("facebook")) {
+      const page = await this.facebookPage(tenantRef, cred);
+      if (page.id) query.set("page_id", page.id);
+      else facebookIssue = page.reason;
+    }
+
     const body = await call<Record<string, AnalyticsEntry>>(
       `/analytics/${encodeURIComponent(tenantRef)}?${query}`,
       cred,
     );
+
+    if (facebookIssue) {
+      body.facebook = { success: false, message: facebookIssue };
+    }
 
     return platforms.map((platform) => {
       const entry = body[platform];
