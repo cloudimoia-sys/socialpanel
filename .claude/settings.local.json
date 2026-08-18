@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "PowerShell(node \"C:\\\\Users\\\\Usuario\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Usuario-SocialPanel\\\\c65d6720-5d23-4fd5-a0de-236dd46deb4d\\\\scratchpad\\\\check-rls.mjs\" 2>&1)"
+    ]
+  }
+}

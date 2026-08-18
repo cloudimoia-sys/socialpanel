@@ -1,0 +1,17 @@
+node_modules/
+.next/
+out/
+build/
+.DS_Store
+
+# Secretos — NUNCA subir al repositorio
+.env
+.env.*
+!.env.example
+
+*.pem
+*.key
+.vercel
+.turbo
+next-env.d.ts
+tsconfig.tsbuildinfo

@@ -1,0 +1,11 @@
+{
+  "functions": {
+    "src/app/api/inngest/route.ts": {
+      "memory": 3009,
+      "maxDuration": 300
+    },
+    "src/app/api/uploads/finalize/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}
