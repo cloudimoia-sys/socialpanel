@@ -626,6 +626,24 @@ textarea {
   align-items: center;
 }
 
+/* Separador con texto centrado: dos líneas que crecen a los lados. */
+.separator {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin: var(--s4) 0;
+  color: var(--text-faint);
+  font-size: 0.75rem;
+}
+
+.separator::before,
+.separator::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
 /* ---------------------------------------------------------------- chips --- */
 
 .chips {

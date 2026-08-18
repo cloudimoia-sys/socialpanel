@@ -3,6 +3,11 @@ import type { NextConfig } from "next";
 const config: NextConfig = {
   reactStrictMode: true,
 
+  // El distintivo flotante de Next.js solo sale en desarrollo, nunca en
+  // producción, pero se planta encima de la esquina inferior de la barra
+  // lateral y tapa el enlace de salir justo donde hay que pulsarlo.
+  devIndicators: false,
+
   // @napi-rs/canvas carga un binario `.node` propio de cada plataforma. Si el
   // bundler intenta empaquetarlo, no resuelve la dependencia nativa y falla al
   // importar. Declararlo externo hace que se cargue en tiempo de ejecución.
