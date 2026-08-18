@@ -7,6 +7,10 @@ build/
 # Secretos — NUNCA subir al repositorio
 .env
 .env.*
+# `.env.*` solo pilla nombres que EMPIECEN por .env: un `var.env` o
+# `produccion.env` (los que se hacen para copiar y pegar en Vercel) se
+# colaban enteros con sus claves. Este patrón los cubre todos.
+*.env
 !.env.example
 
 *.pem

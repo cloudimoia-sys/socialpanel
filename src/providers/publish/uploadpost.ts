@@ -2,6 +2,7 @@ import { AppError, log } from "@/lib/logger";
 import type {
   ConnectedAccount,
   Credential,
+  PlatformMetrics,
   PublishProvider,
   PublishRequest,
   PublishResult,
@@ -38,6 +39,40 @@ interface Profile {
   username: string;
   social_accounts?: Record<string, SocialAccountValue>;
   blocked?: boolean;
+}
+
+/**
+ * Respuesta de analítica por red. O trae métricas, o trae `success: false`
+ * con el motivo — comprobado contra la API real: una cuenta de LinkedIn con
+ * la sesión caducada convive con un Instagram que responde perfectamente.
+ */
+type AnalyticsEntry = {
+  success?: boolean;
+  message?: string;
+  followers?: number;
+  likes?: number;
+  comments?: number;
+  shares?: number;
+  reach_timeseries?: { date?: string; value?: number }[];
+  /** Qué campo considera esta red su métrica canónica de visibilidad. */
+  primary_impressions_field?: string;
+  metric_labels?: Record<string, string>;
+} & Record<string, unknown>;
+
+const numberOrNull = (value: unknown): number | null =>
+  typeof value === "number" && Number.isFinite(value) ? value : null;
+
+/**
+ * Los motivos vienen en inglés y en jerga de la API. Los dos que aparecen de
+ * verdad se traducen a algo accionable; el resto se deja pasar tal cual antes
+ * que inventarse un diagnóstico que no tenemos.
+ */
+function readableReason(message: string): string {
+  if (/page_id/i.test(message)) return "Falta indicar qué página de Facebook medir.";
+  if (/expired|reconnect|refresh failed/i.test(message)) {
+    return "La sesión con esta red caducó. Reconecta la cuenta en Redes.";
+  }
+  return message;
 }
 
 async function call<T>(path: string, cred: Credential, init: RequestInit = {}): Promise<T> {
@@ -125,6 +160,64 @@ export class UploadPostPublisher implements PublishProvider {
     }
 
     return accounts;
+  }
+
+  /**
+   * Métricas de cada red conectada.
+   *
+   * La API responde un objeto con una entrada por red, y cada una puede fallar
+   * por su cuenta. Se traduce a una lista donde el fallo es un campo más
+   * (`unavailable`) y no una excepción: si LinkedIn caducó, el cliente sigue
+   * teniendo derecho a ver sus números de Instagram.
+   */
+  async accountMetrics(
+    tenantRef: string,
+    platforms: string[],
+    cred: Credential,
+  ): Promise<PlatformMetrics[]> {
+    if (platforms.length === 0) return [];
+
+    const query = new URLSearchParams({ platforms: platforms.join(",") });
+    const body = await call<Record<string, AnalyticsEntry>>(
+      `/analytics/${encodeURIComponent(tenantRef)}?${query}`,
+      cred,
+    );
+
+    return platforms.map((platform) => {
+      const entry = body[platform];
+
+      if (!entry || entry.success === false) {
+        return {
+          platform,
+          followers: null,
+          impressions: null,
+          impressionsLabel: "",
+          likes: null,
+          comments: null,
+          shares: null,
+          timeseries: [],
+          unavailable: readableReason(entry?.message ?? "Esta red no devolvió datos."),
+        };
+      }
+
+      // Cada red nombra distinto su métrica de visibilidad y la propia API
+      // dice cuál es la suya. Elegir un campo fijo daría cero en la mitad de
+      // las redes, que es peor que no enseñar nada.
+      const field = entry.primary_impressions_field ?? "impressions";
+
+      return {
+        platform,
+        followers: numberOrNull(entry.followers),
+        impressions: numberOrNull(entry[field]),
+        impressionsLabel: entry.metric_labels?.[field] ?? "Visualizaciones",
+        likes: numberOrNull(entry.likes),
+        comments: numberOrNull(entry.comments),
+        shares: numberOrNull(entry.shares),
+        timeseries: (entry.reach_timeseries ?? [])
+          .filter((point) => typeof point?.date === "string")
+          .map((point) => ({ date: point.date as string, value: point.value ?? 0 })),
+      };
+    });
   }
 
   async connectUrl(tenantRef: string, redirectTo: string, cred: Credential): Promise<string> {

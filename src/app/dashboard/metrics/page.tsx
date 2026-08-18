@@ -1,0 +1,157 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { IconAlert, IconChart } from "@/app/icons";
+import { PlatformIcon, platformLabel } from "@/app/platform-icons";
+
+interface Metrics {
+  platform: string;
+  handle: string;
+  followers: number | null;
+  impressions: number | null;
+  impressionsLabel: string;
+  likes: number | null;
+  comments: number | null;
+  shares: number | null;
+  timeseries: { date: string; value: number }[];
+  unavailable?: string;
+}
+
+/** Una red que no expone una métrica no es una red con cero: se marca sin dato. */
+const fmt = (value: number | null) =>
+  value === null ? "—" : Math.round(value).toLocaleString("es-ES");
+
+/**
+ * Tendencia de la métrica principal, dibujada a mano.
+ *
+ * Sin librería de gráficas a propósito: son 30 puntos y una polilínea. Meter
+ * una dependencia de charts por esto añadiría cientos de KB al bundle para
+ * algo que cabe en diez líneas.
+ */
+function Sparkline({ points }: { points: { date: string; value: number }[] }) {
+  const max = Math.max(0, ...points.map((p) => p.value));
+
+  // Una cuenta recién conectada trae la serie entera a cero. Dibujarla sería
+  // una raya plana clavada en el borde inferior: se lee como un borde suelto,
+  // no como una gráfica, y no aporta nada que no diga ya el 0 de arriba.
+  if (points.length < 2 || max === 0) return null;
+
+  // Se deja aire arriba y abajo: con el rango completo 0-100 el pico toca el
+  // borde y, al no escalarse el trazo, se derrama fuera del recuadro.
+  const path = points
+    .map((p, i) => {
+      const x = (i / (points.length - 1)) * 100;
+      const y = 95 - (p.value / max) * 90;
+      return `${x.toFixed(2)},${y.toFixed(2)}`;
+    })
+    .join(" ");
+
+  return (
+    <svg className="sparkline" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      <polyline points={path} />
+    </svg>
+  );
+}
+
+export default function MetricsPage() {
+  const [metrics, setMetrics] = useState<Metrics[] | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    void (async () => {
+      const res = await fetch("/api/metrics");
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error ?? "No se pudieron cargar las métricas.");
+        setMetrics([]);
+        return;
+      }
+      setMetrics(json.metrics);
+    })();
+  }, []);
+
+  return (
+    <main>
+      <header className="page-head">
+        <h1>Métricas</h1>
+        <p>Cómo van tus cuentas en cada red, de los últimos 30 días.</p>
+      </header>
+
+      {error && (
+        <p className="error" role="alert">
+          <IconAlert />
+          {error}
+        </p>
+      )}
+
+      {metrics === null ? (
+        <section className="card">
+          <div className="skeleton" style={{ width: "35%", height: "1.2rem" }} />
+          <div className="skeleton" style={{ width: "80%" }} />
+          <div className="skeleton" style={{ width: "55%" }} />
+        </section>
+      ) : metrics.length === 0 ? (
+        <section className="card">
+          <div className="empty">
+            <IconChart />
+            <p>No hay ninguna cuenta conectada de la que sacar métricas.</p>
+            <a href="/dashboard/accounts" className="btn">
+              Conectar cuentas
+            </a>
+          </div>
+        </section>
+      ) : (
+        metrics.map((m) => (
+          <article key={m.platform} className="card">
+            <div className="card-head">
+              <span style={{ display: "flex", alignItems: "center", gap: "var(--s2)" }}>
+                <PlatformIcon platform={m.platform} size={20} />
+                <strong>{platformLabel(m.platform)}</strong>
+              </span>
+              <span className="muted truncate">{m.handle}</span>
+            </div>
+
+            {m.unavailable ? (
+              <p className="hint" style={{ margin: 0 }}>
+                {m.unavailable}
+              </p>
+            ) : (
+              <>
+                <div className="metrics">
+                  <div>
+                    <span className="stat">{fmt(m.impressions)}</span>
+                    <span className="muted">{m.impressionsLabel}</span>
+                  </div>
+                  <div>
+                    <span className="stat">{fmt(m.followers)}</span>
+                    <span className="muted">Seguidores</span>
+                  </div>
+                  <div>
+                    <span className="stat">{fmt(m.likes)}</span>
+                    <span className="muted">Me gusta</span>
+                  </div>
+                  <div>
+                    <span className="stat">{fmt(m.comments)}</span>
+                    <span className="muted">Comentarios</span>
+                  </div>
+                  <div>
+                    <span className="stat">{fmt(m.shares)}</span>
+                    <span className="muted">Compartidos</span>
+                  </div>
+                </div>
+
+                <Sparkline points={m.timeseries} />
+              </>
+            )}
+          </article>
+        ))
+      )}
+
+      <p className="hint">
+        Los datos los publica cada red con su propio retraso, así que lo de hoy puede
+        tardar en aparecer. Cada red mide a su manera: no sumamos entre redes porque
+        el total no significaría nada.
+      </p>
+    </main>
+  );
+}

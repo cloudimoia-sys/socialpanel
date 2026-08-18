@@ -5,6 +5,7 @@ import {
   IconBuilding,
   IconCalendar,
   IconCard,
+  IconChart,
   IconHome,
   IconPlus,
   IconShare,
@@ -15,6 +16,7 @@ const LINKS = [
   { href: "/dashboard/brand", label: "Empresa", Icon: IconBuilding },
   { href: "/dashboard/plan", label: "Plan", Icon: IconCalendar },
   { href: "/dashboard/new", label: "Nuevo post", Icon: IconPlus },
+  { href: "/dashboard/metrics", label: "Métricas", Icon: IconChart },
   { href: "/dashboard/accounts", label: "Redes", Icon: IconShare },
   { href: "/dashboard/billing", label: "Suscripción", Icon: IconCard },
 ];

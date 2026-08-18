@@ -114,6 +114,13 @@ export const IconCard = (p: Props) => (
   </svg>
 );
 
+export const IconChart = (p: Props) => (
+  <svg {...base} {...p}>
+    <path d="M3 3v16a2 2 0 0 0 2 2h16" />
+    <path d="M7 15l3.5-4 3 2.5L20 7" />
+  </svg>
+);
+
 export const IconArrowLeft = (p: Props) => (
   <svg {...base} {...p}>
     <path d="M19 12H5M12 19l-7-7 7-7" />

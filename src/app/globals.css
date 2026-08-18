@@ -795,6 +795,46 @@ textarea {
   letter-spacing: -0.02em;
 }
 
+/* ------------------------------------------------------------- métricas -- */
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(4.5rem, 1fr));
+  gap: var(--s3);
+  margin-top: var(--s3);
+}
+
+.metrics > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+/* La cifra baja a 1.25rem: en una rejilla de 4-5 columnas, 1.5rem parte los
+   números de 5 dígitos en dos líneas y se pierde la lectura de un vistazo. */
+.metrics .stat {
+  font-size: 1.25rem;
+}
+
+/* preserveAspectRatio="none" estira el trazo, así que el grosor se compensa
+   con vector-effect para que no salga deformado al ensancharse la tarjeta. */
+.sparkline {
+  width: 100%;
+  height: 2.5rem;
+  margin-top: var(--s4);
+  display: block;
+  overflow: visible;
+}
+
+.sparkline polyline {
+  fill: none;
+  stroke: var(--brand);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
 .muted {
   color: var(--text-muted);
   font-size: 0.8125rem;

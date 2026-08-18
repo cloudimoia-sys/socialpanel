@@ -189,10 +189,48 @@ export interface ConnectedAccount {
   needsReauth?: boolean;
 }
 
+/**
+ * Métricas de una cuenta en una red.
+ *
+ * Cada red mide cosas distintas y las llama distinto: Instagram da "alcance
+ * único", X da "impresiones", TikTok ninguna de las dos. En vez de inventar
+ * una media que no significa nada, se normaliza el CONCEPTO (cuánta gente lo
+ * vio) y se conserva la etiqueta real de esa red para enseñarla tal cual.
+ *
+ * Todo campo puede ser `null`: una red que no expone una métrica no es lo
+ * mismo que una red que la expone y vale cero, y pintar 0 donde no hay dato
+ * es mentir en un panel del que el cliente saca conclusiones.
+ */
+export interface PlatformMetrics {
+  platform: string;
+  followers: number | null;
+  /** Métrica principal de visibilidad, la que esa red considera canónica. */
+  impressions: number | null;
+  /** Cómo llama esa red a lo anterior: "Unique Reach", "Impressions"… */
+  impressionsLabel: string;
+  likes: number | null;
+  comments: number | null;
+  shares: number | null;
+  /** Serie diaria de la métrica principal, para dibujar la tendencia. */
+  timeseries: { date: string; value: number }[];
+  /**
+   * Motivo por el que esta red no devolvió datos (sesión caducada, falta
+   * configurar la página…). Que una red falle no invalida a las demás, así
+   * que se informa por red en vez de tumbar la consulta entera.
+   */
+  unavailable?: string;
+}
+
 export interface PublishProvider {
   readonly name: string;
   listAccounts(tenantRef: string, cred: Credential): Promise<ConnectedAccount[]>;
   publish(req: PublishRequest, tenantRef: string, cred: Credential): Promise<PublishResult>;
   /** URL alojada donde el cliente conecta sus redes por OAuth. */
   connectUrl(tenantRef: string, redirectTo: string, cred: Credential): Promise<string>;
+  /** Métricas por red de las cuentas conectadas de este tenant. */
+  accountMetrics(
+    tenantRef: string,
+    platforms: string[],
+    cred: Credential,
+  ): Promise<PlatformMetrics[]>;
 }
