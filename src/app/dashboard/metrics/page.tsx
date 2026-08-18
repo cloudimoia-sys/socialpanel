@@ -23,6 +23,28 @@ const fmt = (value: number | null) =>
   value === null ? "—" : Math.round(value).toLocaleString("es-ES");
 
 /**
+ * La métrica principal, en castellano llano.
+ *
+ * La API devuelve la etiqueta de cada red en inglés y en su jerga ("Unique
+ * Reach", "Video Views"), que no significa nada para quien lleva una peluquería.
+ *
+ * Se traduce por RED y no por nombre de campo porque el campo miente: TikTok y
+ * X mandan los dos `impressions`, pero en TikTok son reproducciones de un vídeo
+ * y en X veces que apareció en pantalla. Llamarlas igual sería más cómodo y
+ * menos cierto.
+ */
+const IMPRESSIONS_LABEL: Record<string, string> = {
+  instagram: "Personas alcanzadas",
+  facebook: "Personas alcanzadas",
+  linkedin: "Personas alcanzadas",
+  threads: "Personas alcanzadas",
+  tiktok: "Reproducciones",
+  youtube: "Reproducciones",
+  x: "Veces que se vio",
+  pinterest: "Veces que se vio",
+};
+
+/**
  * Tendencia de la métrica principal, dibujada a mano.
  *
  * Sin librería de gráficas a propósito: son 30 puntos y una polilínea. Meter
@@ -125,7 +147,12 @@ export default function MetricsPage() {
                 <div className="metrics">
                   <div>
                     <span className="stat">{fmt(m.impressions)}</span>
-                    <span className="muted">{m.impressionsLabel}</span>
+                    {/* El nombre original queda al pasar el ratón: quien conoce
+                        la jerga de la red puede comprobar que cuadra con lo que
+                        ve en la app oficial. */}
+                    <span className="muted" title={`${platformLabel(m.platform)} lo llama "${m.impressionsLabel}"`}>
+                      {IMPRESSIONS_LABEL[m.platform] ?? m.impressionsLabel}
+                    </span>
                   </div>
                   <div>
                     <span className="stat">{fmt(m.followers)}</span>
@@ -153,9 +180,10 @@ export default function MetricsPage() {
       )}
 
       <p className="hint">
-        Los datos los publica cada red con su propio retraso, así que lo de hoy puede
-        tardar en aparecer. Cada red mide a su manera: no sumamos entre redes porque
-        el total no significaría nada.
+        Un guion (—) significa que esa red no publica ese dato, que no es lo mismo que
+        cero. Los datos salen con el retraso de cada red, así que lo de hoy puede tardar
+        en aparecer. Y como cada una mide a su manera, no sumamos entre redes: el total
+        no significaría nada.
       </p>
     </main>
   );
