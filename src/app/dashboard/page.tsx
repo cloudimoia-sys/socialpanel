@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { spentThisMonthCents } from "@/domain/usage";
+import { AppError } from "@/lib/logger";
 import { adminClient } from "@/lib/supabase";
 import { currentTenant } from "@/lib/tenant";
 import { IconInbox, IconPlus, IconShare } from "@/app/icons";
@@ -20,7 +21,19 @@ const STATUS: Record<string, { label: string; className: string }> = {
 };
 
 export default async function DashboardPage() {
-  const tenant = await currentTenant();
+  // Todo acceso aterriza aquí (el callback de login manda a /dashboard), así
+  // que este es el sitio donde interceptar a quien no está invitado: llega
+  // autenticado, y sin esto vería un error genérico en vez de una explicación.
+  let tenant;
+  try {
+    tenant = await currentTenant();
+  } catch (cause) {
+    if (cause instanceof AppError && cause.publicMessage === "NOT_INVITED") {
+      redirect("/sin-acceso");
+    }
+    throw cause;
+  }
+
   if (!tenant) redirect("/login");
 
   const db = adminClient();

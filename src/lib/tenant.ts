@@ -64,10 +64,19 @@ export async function currentTenant(): Promise<ActiveTenant | null> {
   const { data: tenantId, error } = await db.rpc("ensure_tenant", {
     p_user: user.id,
     p_name: user.email?.split("@")[0] ?? "Mi cuenta",
+    p_email: user.email ?? "",
   });
 
-  if (error || !tenantId) {
-    throw new AppError("No se pudo cargar tu cuenta.", 500, error?.message);
+  if (error) {
+    throw new AppError("No se pudo cargar tu cuenta.", 500, error.message);
+  }
+
+  // Autenticado pero sin invitación: la función devuelve null en vez de crear
+  // nada. Se distingue del fallo técnico a propósito, porque lo que procede es
+  // explicarlo, no enseñar un error.
+  if (!tenantId) {
+    log.info("acceso sin invitacion", { email: user.email });
+    throw new AppError("NOT_INVITED", 403);
   }
 
   const [{ data: tenant }, { data: membership }] = await Promise.all([
