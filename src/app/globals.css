@@ -333,10 +333,11 @@ label {
   color: var(--text);
 }
 
-input[type="text"],
-input[type="email"],
-input[type="number"],
-input[type="date"],
+/* Por exclusión y no por lista blanca: enumerar los tipos dejaba fuera los que
+   se añadían después. Pasó con `password`, `url` y `datetime-local`, que salían
+   con el aspecto nativo del navegador —blancos y estrechos— en medio del panel
+   oscuro. Así, un tipo nuevo hereda el estilo sin que nadie se acuerde. */
+input:not([type="file"]):not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
 textarea,
 select {
   width: 100%;
