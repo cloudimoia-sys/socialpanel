@@ -46,6 +46,20 @@ const serverSchema = z.object({
   APP_URL: z.string().url().default("http://localhost:3000"),
   PROVIDER_PROFILE: z.enum(["free", "paid"]).default("free"),
 
+  /**
+   * Correos con permiso para invitar a otros, separados por comas.
+   *
+   * Va en entorno y NO en la base de datos a propósito: es el permiso que
+   * decide quién entra en la plataforma, así que si viviera en una tabla, un
+   * fallo de RLS o una inyección lo convertiría en escalada de privilegios.
+   * Desde el entorno solo se cambia con acceso al despliegue.
+   *
+   * Vacío significa que nadie es administrador. Falla cerrado a propósito: es
+   * preferible que la pantalla de invitaciones no exista a que quede abierta
+   * por un despiste de configuración.
+   */
+  PLATFORM_ADMIN_EMAILS: z.string().optional(),
+
   // Los modelos van en configuración, no en el código: Google retira versiones
   // sin previo aviso (gemini-2.5-flash dejó de admitir claves nuevas) y no
   // queremos un despliegue para cambiar un identificador.

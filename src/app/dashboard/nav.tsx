@@ -7,6 +7,7 @@ import {
   IconCard,
   IconChart,
   IconHome,
+  IconMail,
   IconPlus,
   IconShare,
 } from "@/app/icons";
@@ -21,12 +22,18 @@ const LINKS = [
   { href: "/dashboard/billing", label: "Suscripción", Icon: IconCard },
 ];
 
-export function NavLinks() {
+/** Solo para administradores de la plataforma, no para los clientes. */
+const ADMIN_LINKS = [
+  { href: "/dashboard/invitations", label: "Invitaciones", Icon: IconMail },
+];
+
+export function NavLinks({ admin = false }: { admin?: boolean }) {
   const pathname = usePathname();
+  const links = admin ? [...LINKS, ...ADMIN_LINKS] : LINKS;
 
   return (
     <nav className="nav" aria-label="Secciones">
-      {LINKS.map(({ href, label, Icon }) => {
+      {links.map(({ href, label, Icon }) => {
         // "/dashboard" solo se marca en exacto; el resto también en sus subrutas.
         const active = href === "/dashboard" ? pathname === href : pathname.startsWith(href);
 

@@ -198,9 +198,19 @@ export type AuditLog = {
   created_at: Timestamptz;
 };
 
+/** Lista de correos con permiso para darse de alta. Ver 0012_invite_only.sql. */
+export type AllowedSignup = {
+  email: string;
+  note: string | null;
+  created_at: Timestamptz;
+  claimed_at: Timestamptz | null;
+  claimed_by: string | null;
+};
+
 export type Database = {
   public: {
     Tables: {
+      allowed_signups: Table<AllowedSignup, Pick<AllowedSignup, "email"> & Partial<AllowedSignup>>;
       tenants: Table<Tenant, Pick<Tenant, "name"> & Partial<Tenant>>;
       memberships: Table<Membership, Omit<Membership, "created_at"> & Partial<Membership>>;
       provider_credentials: Table<
@@ -242,8 +252,10 @@ export type Database = {
     Views: Record<string, never>;
     Functions: {
       ensure_tenant: {
-        Args: { p_user: string; p_name: string };
-        Returns: string;
+        Args: { p_user: string; p_name: string; p_email: string };
+        // `null` no es un fallo: significa que el correo no está invitado y no
+        // se ha creado ningún tenant. Ver 0012_invite_only.sql.
+        Returns: string | null;
       };
     };
     Enums: Record<string, never>;
