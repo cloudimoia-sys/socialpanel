@@ -15,6 +15,23 @@ import { AppError, log } from "@/lib/logger";
 
 export type Template = "headline" | "band" | "corner";
 
+/**
+ * Una diapositiva de carrusel.
+ *
+ * No lleva imagen: el carrusel se dibuja entero con tipografía sobre un fondo
+ * de marca. Es lo que hace que salga gratis y al instante, frente a generar
+ * seis imágenes con IA — y además garantiza que las seis parezcan de la misma
+ * marca, cosa que seis llamadas a un modelo no garantizan.
+ */
+export interface Slide {
+  /** Etiqueta pequeña arriba: "El problema", "Lo que pasó"… */
+  kicker?: string;
+  /** Titular. Lo que vaya *entre asteriscos* se resalta sobre el color de acento. */
+  title: string;
+  /** Párrafo de apoyo, opcional. */
+  body?: string;
+}
+
 export interface ComposeOptions {
   image: Buffer;
   text: string;
@@ -60,34 +77,82 @@ function ensureFonts(): void {
 }
 
 /**
- * La primera familia disponible de la lista, para no renderizar en blanco.
+ * Catálogo de familias que puede elegir cada cliente.
  *
- * Poppins va primero porque es la de `assets/fonts/` y la que se parece a la
- * marca; el resto son redes de seguridad para entornos donde falte.
+ * Van empaquetadas con el proyecto y no se descargan al vuelo: el render corre
+ * en un servidor sin fuentes instaladas, y depender de la red en ese momento
+ * significaría publicar piezas con el texto en blanco cuando falle.
  */
-function resolveFont(preferred: string): string {
-  ensureFonts();
-  const available = new Set(GlobalFonts.families.map((f) => f.family));
-  const candidates = [
-    preferred,
-    "Poppins-Bold",
-    "Poppins-SemiBold",
-    "Poppins",
-    "Inter",
-    "Segoe UI",
-    "Arial",
-    "DejaVu Sans",
-  ];
-  return candidates.find((c) => available.has(c)) ?? GlobalFonts.families[0]?.family ?? "sans-serif";
+export interface FontFamily {
+  /** Coincide con el prefijo de los archivos en `assets/fonts/`. */
+  id: string;
+  name: string;
+  note: string;
+  group: string;
+  /** Manuscrita: ni se pasa a versales ni aguanta titulares largos. */
+  script?: boolean;
 }
 
-/** Peso ligero para subtítulos; cae al principal si no está disponible. */
-function resolveLightFont(): string {
+export const FONT_FAMILIES: FontFamily[] = [
+  { id: "Poppins", name: "Poppins", note: "Moderna y cercana", group: "Modernas" },
+  { id: "Montserrat", name: "Montserrat", note: "Versátil, la más usada", group: "Modernas" },
+  { id: "Inter", name: "Inter", note: "Neutra y técnica", group: "Modernas" },
+  { id: "Anton", name: "Anton", note: "Condensada muy pesada", group: "Impacto" },
+  { id: "BebasNeue", name: "Bebas Neue", note: "Condensada en mayúsculas", group: "Impacto" },
+  { id: "ArchivoBlack", name: "Archivo Black", note: "Muy pesada y ancha", group: "Impacto" },
+  { id: "Oswald", name: "Oswald", note: "Condensada legible", group: "Impacto" },
+  { id: "PlayfairDisplay", name: "Playfair Display", note: "Serif editorial", group: "Serif" },
+  { id: "LibreBaskerville", name: "Libre Baskerville", note: "Clásica y seria", group: "Serif" },
+  { id: "RobotoSlab", name: "Roboto Slab", note: "Robusta, de oficio", group: "Serif" },
+  { id: "Nunito", name: "Nunito", note: "Redondeada y amable", group: "Amables" },
+  { id: "Quicksand", name: "Quicksand", note: "Ligera y suave", group: "Amables" },
+  {
+    id: "Caveat",
+    name: "Caveat",
+    note: "Manuscrita — cuesta leerla en titulares largos",
+    group: "Manuscritas",
+    script: true,
+  },
+  {
+    id: "Pacifico",
+    name: "Pacifico",
+    note: "Manuscrita retro — mejor en frases cortas",
+    group: "Manuscritas",
+    script: true,
+  },
+];
+
+/**
+ * Resuelve la pareja de pesos de una familia.
+ *
+ * Antes había dos funciones sueltas y la del peso ligero estaba fijada a
+ * Poppins, así que un cliente que eligiera Playfair tenía titulares Playfair
+ * con el cuerpo en Poppins. Resolviendo la familia entera de una vez, los dos
+ * pesos vienen siempre del mismo sitio.
+ *
+ * Las familias de un solo peso (Anton, Bebas Neue, Archivo Black, Pacifico)
+ * caen a su único archivo para ambos: ya son pesadas de por sí.
+ */
+function resolveFamily(preferred: string): { bold: string; regular: string; script: boolean } {
   ensureFonts();
   const available = new Set(GlobalFonts.families.map((f) => f.family));
-  return ["Poppins-Regular", "Poppins-SemiBold", "Inter", "Segoe UI", "Arial"].find((c) =>
-    available.has(c),
-  ) ?? resolveFont("");
+
+  // Tolera valores antiguos como "Poppins-Bold": el campo guardaba el archivo
+  // y ahora guarda la familia, y no merece una migración romper las piezas.
+  const base = (preferred || "Poppins").replace(/-(Bold|SemiBold|Regular|Medium|Light)$/i, "");
+  const pick = (...candidates: string[]) => candidates.find((c) => available.has(c));
+
+  const fallback = GlobalFonts.families[0]?.family ?? "sans-serif";
+  const entry = FONT_FAMILIES.find((f) => f.id === base);
+
+  return {
+    bold:
+      pick(`${base}-Bold`, `${base}-SemiBold`, `${base}-Regular`, base, "Poppins-Bold", "Arial") ??
+      fallback,
+    regular:
+      pick(`${base}-Regular`, `${base}-Bold`, base, "Poppins-Regular", "Arial") ?? fallback,
+    script: entry?.script === true,
+  };
 }
 
 // -----------------------------------------------------------------------------
@@ -142,10 +207,266 @@ function fitText(
 }
 
 // -----------------------------------------------------------------------------
+// Carrusel
+// -----------------------------------------------------------------------------
+
+interface Word {
+  text: string;
+  highlight: boolean;
+}
+
+/**
+ * Parte el titular en palabras marcando cuáles van resaltadas.
+ *
+ * Se trocea antes de medir, y no se mide el texto con los asteriscos dentro,
+ * porque esos dos caracteres ensanchan la línea lo justo para que el ajuste
+ * automático parta donde no toca.
+ */
+function parseWords(text: string): Word[] {
+  const words: Word[] = [];
+
+  for (const [index, chunk] of text.split("*").entries()) {
+    // Los trozos impares son los que estaban entre asteriscos.
+    const highlight = index % 2 === 1;
+    for (const word of chunk.split(/\s+/).filter(Boolean)) {
+      words.push({ text: word, highlight });
+    }
+  }
+
+  return words;
+}
+
+/** Reparte las palabras en líneas que quepan en `maxWidth`. */
+function wrapWords(ctx: Ctx, words: Word[], maxWidth: number): Word[][] {
+  const lines: Word[][] = [];
+  let line: Word[] = [];
+  let width = 0;
+  const space = ctx.measureText(" ").width;
+
+  for (const word of words) {
+    const wordWidth = ctx.measureText(word.text).width;
+    const needed = line.length === 0 ? wordWidth : width + space + wordWidth;
+
+    if (needed > maxWidth && line.length > 0) {
+      lines.push(line);
+      line = [word];
+      width = wordWidth;
+    } else {
+      line.push(word);
+      width = needed;
+    }
+  }
+
+  if (line.length > 0) lines.push(line);
+  return lines;
+}
+
+/** Baja el cuerpo hasta que el titular cabe, igual que `fitText` pero con resaltados. */
+function fitWords(
+  ctx: Ctx,
+  words: Word[],
+  font: string,
+  maxWidth: number,
+  maxHeight: number,
+  startSize: number,
+): { lines: Word[][]; size: number; lineHeight: number } {
+  for (let size = startSize; size >= 24; size -= 2) {
+    ctx.font = `700 ${size}px "${font}"`;
+    const lines = wrapWords(ctx, words, maxWidth);
+    const lineHeight = size * 1.1;
+    if (lines.length * lineHeight <= maxHeight) return { lines, size, lineHeight };
+  }
+
+  ctx.font = `700 24px "${font}"`;
+  return { lines: wrapWords(ctx, words, maxWidth), size: 24, lineHeight: 24 * 1.1 };
+}
+
+export interface ComposeSlideOptions {
+  slide: Slide;
+  /** Empieza en 0. Se usa para numerar y para saber si es la portada. */
+  index: number;
+  total: number;
+  accent: string;
+  background: string;
+  textColor: string;
+  mutedColor: string;
+  fontFamily: string;
+  /** Marca o web, en el pie. */
+  footer?: string;
+  /** 4:5 ocupa más alto en el muro que 1:1, así que rinde mejor. */
+  ratio?: "1:1" | "4:5";
+}
+
+/**
+ * Dibuja una diapositiva completa.
+ *
+ * El tamaño es fijo (1080 de ancho) porque es el que piden las redes y porque
+ * componer a resolución final evita reescalados que emborronan la tipografía.
+ */
+export async function composeSlide(options: ComposeSlideOptions): Promise<Buffer> {
+  const { bold: font, regular: lightFont, script } = resolveFamily(options.fontFamily);
+
+  // Las manuscritas en versales son ilegibles: la ele mayuscula de Pacifico se
+  // confunde con una ce. Se dejan tal cual las escribio el cliente.
+  const cased = (text: string) => (script ? text : text.toUpperCase());
+
+  const width = 1080;
+  const height = options.ratio === "1:1" ? 1080 : 1350;
+  const canvas = createCanvas(width, height);
+  const ctx = canvas.getContext("2d");
+
+  ctx.fillStyle = options.background;
+  ctx.fillRect(0, 0, width, height);
+
+  const pad = Math.round(width * 0.085);
+  const maxWidth = width - pad * 2;
+
+  // --- Cabecera: etiqueta y numeración -------------------------------------
+  const kickerSize = Math.round(width * 0.032);
+  ctx.font = `700 ${kickerSize}px "${lightFont}"`;
+  ctx.textAlign = "left";
+
+  if (options.slide.kicker) {
+    ctx.fillStyle = options.accent;
+    ctx.fillText(cased(options.slide.kicker), pad, pad + kickerSize);
+  }
+
+  if (options.total > 1) {
+    ctx.textAlign = "right";
+    ctx.fillStyle = options.mutedColor;
+    ctx.fillText(`${options.index + 1}/${options.total}`, width - pad, pad + kickerSize);
+    ctx.textAlign = "left";
+  }
+
+  // --- Titular --------------------------------------------------------------
+  const words = parseWords(options.slide.title);
+  // La portada manda más grande: es la única que se ve sin deslizar, así que
+  // es la que decide si alguien sigue mirando.
+  const startSize = Math.round(width * (options.index === 0 ? 0.115 : 0.092));
+  const { lines, size, lineHeight } = fitWords(
+    ctx,
+    words,
+    font,
+    maxWidth,
+    height * (options.slide.body ? 0.42 : 0.6),
+    startSize,
+  );
+
+  // El cuerpo se mide ANTES de dibujar nada: para centrar el bloque hay que
+  // conocer su altura total, y eso incluye el párrafo.
+  const bodySize = Math.round(size * 0.4);
+  const bodyLineHeight = bodySize * 1.45;
+  let bodyLines: string[] = [];
+
+  if (options.slide.body) {
+    ctx.font = `500 ${bodySize}px "${lightFont}"`;
+    bodyLines = wrap(ctx, options.slide.body, maxWidth);
+  }
+
+  const gap = bodyLines.length > 0 ? bodySize * 1.6 : 0;
+  const blockHeight = lines.length * lineHeight + gap + bodyLines.length * bodyLineHeight;
+
+  // Centrado en el hueco entre la cabecera y el pie. Alineado arriba dejaba
+  // media diapositiva vacía cuando el texto era corto, que es casi siempre.
+  //
+  // Reparte el aire sobrante 42/58 y no a la mitad: el centro óptico está por
+  // encima del geométrico, y clavado al centro exacto el bloque parece caído.
+  const areaTop = pad + kickerSize * 2.8;
+  const areaBottom = height - pad - kickerSize * 3.4;
+  const slack = Math.max(0, areaBottom - areaTop - blockHeight);
+  let y = areaTop + slack * 0.42 + lineHeight * 0.78;
+
+  ctx.font = `700 ${size}px "${font}"`;
+  const space = ctx.measureText(" ").width;
+
+  for (const line of lines) {
+    // Posiciones primero, dibujo después: hace falta saber dónde acaba cada
+    // palabra para poder pintar un único recuadro bajo las que van seguidas.
+    const placed: { word: Word; x: number; width: number }[] = [];
+    let x = pad;
+
+    for (const word of line) {
+      const wordWidth = ctx.measureText(word.text).width;
+      placed.push({ word, x, width: wordWidth });
+      x += wordWidth + space;
+    }
+
+    // Altura del recuadro a partir de las métricas REALES de esta línea, no de
+    // proporciones fijas: cada familia tiene ascendentes distintos y unas
+    // constantes calibradas para Poppins recortaban las letras altas de Anton.
+    // Se mide la línea entera para que todos los recuadros midan igual.
+    const lineMetrics = ctx.measureText(line.map((w) => w.text).join(" "));
+    const ascent = lineMetrics.actualBoundingBoxAscent || size * 0.72;
+    const descent = lineMetrics.actualBoundingBoxDescent || size * 0.2;
+    const boxPad = size * 0.13;
+
+    // Un recuadro por RACHA de palabras resaltadas, no por palabra: una caja
+    // por palabra deja una costura visible entre ellas y se lee como dos
+    // etiquetas sueltas en vez de una frase destacada.
+    let i = 0;
+    while (i < placed.length) {
+      if (!placed[i]!.word.highlight) {
+        i += 1;
+        continue;
+      }
+
+      let end = i;
+      while (end + 1 < placed.length && placed[end + 1]!.word.highlight) end += 1;
+
+      const from = placed[i]!.x;
+      const to = placed[end]!.x + placed[end]!.width;
+
+      ctx.fillStyle = options.accent;
+      ctx.fillRect(
+        from - boxPad,
+        y - ascent - boxPad,
+        to - from + boxPad * 2,
+        ascent + descent + boxPad * 2,
+      );
+
+      i = end + 1;
+    }
+
+    for (const { word, x: wordX } of placed) {
+      // Sobre el acento se escribe con el color de fondo, que es el que
+      // contrasta con él por construcción.
+      ctx.fillStyle = word.highlight ? options.background : options.textColor;
+      ctx.fillText(word.text, wordX, y);
+    }
+
+    y += lineHeight;
+  }
+
+  // --- Cuerpo ---------------------------------------------------------------
+  if (bodyLines.length > 0) {
+    ctx.font = `500 ${bodySize}px "${lightFont}"`;
+    ctx.fillStyle = options.mutedColor;
+
+    let by = y - lineHeight + gap + bodySize;
+    for (const line of bodyLines) {
+      ctx.fillText(line, pad, by);
+      by += bodyLineHeight;
+    }
+  }
+
+  // --- Pie ------------------------------------------------------------------
+  const ruleY = height - pad - kickerSize * 1.6;
+  ctx.fillStyle = options.accent;
+  ctx.fillRect(pad, ruleY, width * 0.11, Math.max(4, width * 0.007));
+
+  if (options.footer) {
+    ctx.font = `700 ${Math.round(kickerSize * 0.85)}px "${lightFont}"`;
+    ctx.fillStyle = options.mutedColor;
+    ctx.fillText(cased(options.footer), pad, height - pad);
+  }
+
+  return canvas.toBuffer("image/png");
+}
+
+// -----------------------------------------------------------------------------
 
 export async function composeOverlay(options: ComposeOptions): Promise<Buffer> {
-  const font = resolveFont(options.fontFamily);
-  const lightFont = resolveLightFont();
+  const { bold: font, regular: lightFont } = resolveFamily(options.fontFamily);
 
   let image;
   try {
