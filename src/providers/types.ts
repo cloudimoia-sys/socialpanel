@@ -214,6 +214,13 @@ export interface PlatformMetrics {
   /** Serie diaria de la métrica principal, para dibujar la tendencia. */
   timeseries: { date: string; value: number }[];
   /**
+   * Qué se está midiendo exactamente, cuando no coincide con la cuenta
+   * conectada. En Facebook la cuenta figura con el nombre del perfil personal
+   * ("Cloudimo IA") pero los números son de una página distinta ("Cloudimo"):
+   * sin decirlo, la tarjeta atribuye cifras a algo que no las generó.
+   */
+  measuring?: string;
+  /**
    * Motivo por el que esta red no devolvió datos (sesión caducada, falta
    * configurar la página…). Que una red falle no invalida a las demás, así
    * que se informa por red en vez de tumbar la consulta entera.

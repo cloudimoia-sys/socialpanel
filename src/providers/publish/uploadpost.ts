@@ -174,7 +174,7 @@ export class UploadPostPublisher implements PublishProvider {
   private async facebookPage(
     tenantRef: string,
     cred: Credential,
-  ): Promise<{ id?: string; reason?: string }> {
+  ): Promise<{ id?: string; name?: string; reason?: string }> {
     let pages: { id?: string; name?: string }[];
 
     try {
@@ -200,7 +200,7 @@ export class UploadPostPublisher implements PublishProvider {
       };
     }
 
-    if (usable.length === 1) return { id: usable[0]!.id };
+    if (usable.length === 1) return { id: usable[0]!.id, name: usable[0]!.name };
 
     const names = usable.map((p) => p.name ?? p.id).join(", ");
     return { reason: `Tienes varias páginas conectadas (${names}) y aún no se puede elegir cuál medir.` };
@@ -229,10 +229,15 @@ export class UploadPostPublisher implements PublishProvider {
     // pedirlo a mano garantiza que lo pegue mal. Se resuelve preguntando qué
     // páginas hay conectadas de verdad.
     let facebookIssue: string | undefined;
+    let facebookPageName: string | undefined;
     if (platforms.includes("facebook")) {
       const page = await this.facebookPage(tenantRef, cred);
-      if (page.id) query.set("page_id", page.id);
-      else facebookIssue = page.reason;
+      if (page.id) {
+        query.set("page_id", page.id);
+        facebookPageName = page.name;
+      } else {
+        facebookIssue = page.reason;
+      }
     }
 
     const body = await call<Record<string, AnalyticsEntry>>(
@@ -277,6 +282,7 @@ export class UploadPostPublisher implements PublishProvider {
         timeseries: (entry.reach_timeseries ?? [])
           .filter((point) => typeof point?.date === "string")
           .map((point) => ({ date: point.date as string, value: point.value ?? 0 })),
+        measuring: platform === "facebook" ? facebookPageName : undefined,
       };
     });
   }

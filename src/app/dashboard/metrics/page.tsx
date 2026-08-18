@@ -14,6 +14,7 @@ interface Metrics {
   comments: number | null;
   shares: number | null;
   timeseries: { date: string; value: number }[];
+  measuring?: string;
   unavailable?: string;
 }
 
@@ -108,7 +109,11 @@ export default function MetricsPage() {
                 <PlatformIcon platform={m.platform} size={20} />
                 <strong>{platformLabel(m.platform)}</strong>
               </span>
-              <span className="muted truncate">{m.handle}</span>
+              {/* Se enseña lo que de verdad producen estos números. En Facebook
+                  la cuenta conectada lleva el nombre del perfil personal pero
+                  las cifras son de la página: rotular con el perfil las
+                  atribuiría a quien no las generó. */}
+              <span className="muted truncate">{m.measuring ?? m.handle}</span>
             </div>
 
             {m.unavailable ? (
