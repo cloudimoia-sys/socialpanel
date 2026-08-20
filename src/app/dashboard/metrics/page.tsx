@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { IconAlert, IconChart } from "@/app/icons";
 import { PlatformIcon, platformLabel } from "@/app/platform-icons";
 import { AreaChart } from "@/app/dashboard/chart";
+import { SocialScoreCard } from "@/app/dashboard/social-score-card";
 import { IMPRESSIONS_LABEL } from "@/domain/metric-labels";
 
 interface Metrics {
@@ -86,6 +87,8 @@ export default function MetricsPage() {
           {error}
         </p>
       )}
+
+      <SocialScoreCard />
 
       {metrics === null ? (
         <section className="card">
