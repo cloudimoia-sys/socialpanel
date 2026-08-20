@@ -112,7 +112,7 @@ export default function QueuePage() {
   }
 
   return (
-    <main>
+    <main className="main-wide">
       <header className="page-head">
         <h1>Cola de publicación</h1>
         <p>Lo que va a salir, en qué red y cuándo.</p>

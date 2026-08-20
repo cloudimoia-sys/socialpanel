@@ -251,6 +251,14 @@ main {
   width: 100%;
 }
 
+/* Páginas con tablas anchas (varias columnas): 62rem es buen ancho de
+   lectura para texto y formularios, pero en una tabla desperdicia toda la
+   pantalla a la derecha en monitores grandes en vez de dar aire a las
+   columnas. */
+main.main-wide {
+  max-width: 84rem;
+}
+
 .page-head {
   margin-bottom: var(--s5);
 }
@@ -1263,6 +1271,12 @@ textarea {
 }
 
 .truncate {
+  /* overflow/text-overflow no hacen nada en una caja inline (el valor por
+     defecto de <a>/<strong>): bloquea aquí para que el recorte real
+     funcione, tanto suelto como de hijo flex (de ahí el min-width: 0, el
+     truco para que un flex item pueda encogerse por debajo de su contenido
+     en vez de desbordar la fila). */
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

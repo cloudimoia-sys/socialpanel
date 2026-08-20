@@ -83,7 +83,7 @@ export default function ContentLibraryPage() {
   }
 
   return (
-    <main>
+    <main className="main-wide">
       <header className="page-head">
         <h1>Contenido</h1>
         <p>Todo lo que se ha generado, en un solo sitio.</p>
