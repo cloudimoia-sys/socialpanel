@@ -3,8 +3,9 @@ import { spentThisMonthCents } from "@/domain/usage";
 import { AppError } from "@/lib/logger";
 import { adminClient } from "@/lib/supabase";
 import { currentTenant } from "@/lib/tenant";
-import { IconInbox, IconPlus, IconShare } from "@/app/icons";
+import { IconCalendar, IconInbox, IconPlus, IconShare } from "@/app/icons";
 import { PlatformIcon, platformLabel } from "@/app/platform-icons";
+import { AreaChart } from "@/app/dashboard/chart";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,23 @@ const STATUS: Record<string, { label: string; className: string }> = {
   published: { label: "publicado", className: "badge badge-ok" },
   failed: { label: "falló", className: "badge badge-danger" },
 };
+
+const pad = (n: number) => String(n).padStart(2, "0");
+const isoDay = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+/** ▲/▼/— y color, a partir de dos totales. `null` cuando no hay con qué comparar. */
+function Delta({ current, previous }: { current: number; previous: number }) {
+  if (previous === 0) {
+    return current > 0 ? <span className="delta delta-up">nuevo</span> : null;
+  }
+  const pct = Math.round(((current - previous) / previous) * 100);
+  if (pct === 0) return <span className="delta delta-flat">— 0%</span>;
+  return (
+    <span className={pct > 0 ? "delta delta-up" : "delta delta-down"}>
+      {pct > 0 ? "▲" : "▼"} {Math.abs(pct)}%
+    </span>
+  );
+}
 
 export default async function DashboardPage() {
   // Todo acceso aterriza aquí (el callback de login manda a /dashboard), así
@@ -37,22 +55,73 @@ export default async function DashboardPage() {
   if (!tenant) redirect("/login");
 
   const db = adminClient();
+  const now = new Date();
+  const since60 = new Date(now.getTime() - 60 * 86400000);
 
-  const [{ data: brand }, { data: accounts }, { data: posts }, spent] = await Promise.all([
-    db.from("brand_profiles").select("business_name").eq("tenant_id", tenant.tenantId).maybeSingle(),
-    db.from("social_accounts").select("platform, handle, status").eq("tenant_id", tenant.tenantId),
-    db
-      .from("posts")
-      .select("id, status, caption, created_at")
-      .eq("tenant_id", tenant.tenantId)
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false })
-      .limit(6),
-    spentThisMonthCents(tenant.tenantId),
-  ]);
+  const [{ data: brand }, { data: accounts }, { data: recent }, { data: last60 }, spent] =
+    await Promise.all([
+      db.from("brand_profiles").select("business_name").eq("tenant_id", tenant.tenantId).maybeSingle(),
+      db.from("social_accounts").select("platform, handle, status").eq("tenant_id", tenant.tenantId),
+      db
+        .from("posts")
+        .select("id, status, caption, brief, created_at")
+        .eq("tenant_id", tenant.tenantId)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .limit(6),
+      // Una sola consulta de 60 días para dos cosas: la gráfica de los últimos
+      // 30 y el total de los 30 anteriores con los que compararla. Pedirlos
+      // por separado sería la misma tabla dos veces.
+      db
+        .from("posts")
+        .select("created_at")
+        .eq("tenant_id", tenant.tenantId)
+        .is("deleted_at", null)
+        .gte("created_at", since60.toISOString()),
+      spentThisMonthCents(tenant.tenantId),
+    ]);
+
+  const { data: upcoming } = await db
+    .from("posts")
+    .select("id, caption, brief, scheduled_at, scheduled_platforms")
+    .eq("tenant_id", tenant.tenantId)
+    .is("deleted_at", null)
+    .eq("status", "scheduled")
+    .order("scheduled_at", { ascending: true })
+    .limit(5);
 
   const pct = Math.min(100, (spent / Math.max(1, tenant.budgetCents)) * 100);
   const tight = spent > tenant.budgetCents * 0.8;
+
+  // Serie diaria de los últimos 30 días, y el total de los 30 anteriores para
+  // la variación. Se cuenta por CREACIÓN, no por publicación: es el dato que
+  // siempre existe (post_targets.published_at varía por red), y "cuánto
+  // contenido produces" es una cifra propia que sí se puede comparar día a
+  // día — al contrario que el alcance, que cada red mide a su manera.
+  const days: { date: string; value: number }[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    days.push({ date: isoDay(d), value: 0 });
+  }
+  const byDay = new Map(days.map((d) => [d.date, d]));
+
+  let last30Count = 0;
+  let prev30Count = 0;
+  const boundary = new Date(now.getTime() - 30 * 86400000);
+
+  for (const row of last60 ?? []) {
+    const created = new Date(row.created_at);
+    if (created >= boundary) {
+      last30Count += 1;
+      const bucket = byDay.get(isoDay(created));
+      if (bucket) bucket.value += 1;
+    } else {
+      prev30Count += 1;
+    }
+  }
+
+  const scheduledCount = upcoming?.length ?? 0;
 
   return (
     <main>
@@ -76,26 +145,91 @@ export default async function DashboardPage() {
         </div>
       )}
 
+      <div className="kpis">
+        <div className="kpi">
+          <div className="kpi-head">
+            <Delta current={last30Count} previous={prev30Count} />
+          </div>
+          <div className="value">{last30Count}</div>
+          <div className="label">Publicaciones · 30 días</div>
+        </div>
+
+        <div className="kpi">
+          <div className="kpi-head" />
+          <div className="value">{scheduledCount}</div>
+          <div className="label">Programadas</div>
+        </div>
+
+        <div className="kpi">
+          <div className="kpi-head" />
+          <div className="value">{accounts?.length ?? 0}</div>
+          <div className="label">Redes conectadas</div>
+        </div>
+
+        <div className="kpi">
+          <div className="kpi-head">
+            {tight && <span className="delta delta-down">{Math.round(pct)}%</span>}
+          </div>
+          <div className="value">{euros(spent)}</div>
+          <div className="label">Consumo del mes</div>
+        </div>
+      </div>
+
+      <section className="card">
+        <h2 className="card-title">Publicaciones creadas · últimos 30 días</h2>
+        <div style={{ marginTop: "var(--s3)" }}>
+          <AreaChart
+            points={days.map((d) => ({
+              label: new Date(`${d.date}T12:00:00`).toLocaleDateString("es-ES", {
+                day: "numeric",
+                month: "short",
+              }),
+              value: d.value,
+            }))}
+            height={200}
+            label="Publicaciones creadas por día en los últimos 30 días"
+          />
+        </div>
+      </section>
+
       <div className="grid-2">
         <section className="card">
           <div className="card-head">
-            <h2 className="card-title">Consumo del mes</h2>
-            <span className={tight ? "badge badge-warn" : "badge"}>
-              {Math.round(pct)}%
-            </span>
+            <h2 className="card-title">Próximas publicaciones</h2>
+            <a href="/dashboard/calendar" className="btn btn-ghost btn-sm">
+              <IconCalendar />
+              Ver calendario
+            </a>
           </div>
-          <div className="stat">{euros(spent)}</div>
-          <p className="muted" style={{ margin: 0 }}>
-            de {euros(tenant.budgetCents)} presupuestados
-          </p>
-          <div className="meter">
-            <div
-              style={{
-                width: `${pct}%`,
-                background: tight ? "var(--warn)" : "var(--brand)",
-              }}
-            />
-          </div>
+
+          {upcoming && upcoming.length > 0 ? (
+            <ul className="list">
+              {upcoming.map((p) => (
+                <li key={p.id}>
+                  <span style={{ display: "flex", gap: ".3rem" }}>
+                    {p.scheduled_platforms.slice(0, 3).map((platform) => (
+                      <PlatformIcon key={platform} platform={platform} size={16} />
+                    ))}
+                  </span>
+                  <a href={`/dashboard/posts/${p.id}`} className="truncate" style={{ flex: 1 }}>
+                    {(p.caption ?? p.brief ?? "Sin texto todavía").slice(0, 60)}
+                  </a>
+                  <span className="muted" style={{ whiteSpace: "nowrap" }}>
+                    {p.scheduled_at &&
+                      new Date(p.scheduled_at).toLocaleDateString("es-ES", {
+                        day: "numeric",
+                        month: "short",
+                      })}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="hint" style={{ marginBottom: 0 }}>
+              Nada programado todavía.{" "}
+              <a href="/dashboard/plan">Genera un plan</a> o crea un post suelto.
+            </p>
+          )}
         </section>
 
         <section className="card">
@@ -138,15 +272,15 @@ export default async function DashboardPage() {
           </a>
         </div>
 
-        {posts && posts.length > 0 ? (
+        {recent && recent.length > 0 ? (
           <ul className="list">
-            {posts.map((p) => {
+            {recent.map((p) => {
               const s = STATUS[p.status] ?? { label: p.status, className: "badge" };
               return (
                 <li key={p.id}>
                   <span className={s.className}>{s.label}</span>
                   <a href={`/dashboard/posts/${p.id}`} className="truncate" style={{ flex: 1 }}>
-                    {p.caption?.slice(0, 80) ?? "Sin texto todavía"}
+                    {(p.caption ?? p.brief)?.slice(0, 80) ?? "Sin texto todavía"}
                   </a>
                   <span className="muted" style={{ whiteSpace: "nowrap" }}>
                     {new Date(p.created_at).toLocaleDateString("es-ES", {
