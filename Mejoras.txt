@@ -1,0 +1,427 @@
+═══════════════════════════════════════════════════════════════════════════
+ESTADO (actualizado)
+═══════════════════════════════════════════════════════════════════════════
+
+HECHO:
+  1.  Calendario           — sí, sin "arrastrar para cambiar fecha" todavía
+  7.  Generador de ideas   — ya existía (/dashboard/plan), sin la columna
+                              "Potencial"
+  9.  Bandeja de mensajes  — SOLO Instagram DMs. Ni comentarios (falta
+                              permiso de Meta en la cuenta conectada) ni el
+                              resto de redes (Upload-Post no lo expone)
+  8.  Reciclaje de contenido — precarga el texto de un ganador en el
+                              composer; no hay conversión automática a Reel/
+                              Carrusel/Newsletter
+  14. Informes automáticos — PDF mensual, sin branding de agencia
+      todavía
+  15. Social Score          — solo con las 4 dimensiones medibles de verdad
+                              (frecuencia, constancia, interacción, calidad
+                              marcada) — sin "conversión" ni "crecimiento",
+                              no hay CRM en la app
+  13. Multiempresa          — selector de tenant en la barra lateral, para
+                              quien ya pertenece a varios
+      Inicio enriquecido    — KPIs + gráfica de actividad (no estaba en
+                              esta lista, pero era necesario primero)
+
+DESCARTADO:
+  12. Aprobación de contenido para agencias — decisión explícita, no se
+      hace
+
+SIN EMPEZAR:
+  2.  Content Studio (copy multi-red desde un solo brief)
+  3.  Generación de vídeo con subtítulos/música/voz IA/avatar — cada uno es
+      un proveedor nuevo con coste propio
+  4.  Analytics accionado por IA ("tus Reels rinden un 42% más") — hace
+      falta guardar histórico; hoy solo se consulta la API de Upload-Post
+      al vuelo
+  5.  Perfil de marca — ya existe casi todo (tono, palabras prohibidas,
+      colores, tipografía); faltan LOGO y "competidores"
+  6.  Analizador de competidores — con matices importantes, ver abajo
+  10. Social CRM
+  11. ROI de redes sociales — depende de 9 y 10
+
+NOTA sobre el punto 6 (competidores) — investigado, no descartado:
+  - YouTube: viable de verdad, API oficial y gratis
+  - Instagram: posible (Business Discovery) pero exige app propia de Meta
+    con revisión aprobada
+  - TikTok / LinkedIn: no hay vía oficial — solo raspado, descartado
+  - "Lo que funciona en tu sector" tal cual se pedía no es posible sin
+    inventar datos
+
+═══════════════════════════════════════════════════════════════════════════
+
+
+🚀 1. Calendario de contenidos inteligente
+
+Un calendario donde puedas ver:
+
+Instagram
+Facebook
+TikTok
+LinkedIn
+X
+YouTube
+Google Business Profile
+Threads, Pinterest, etc.
+
+Y que la IA pueda decir:
+
+“Tengo 3 publicaciones esta semana y ninguna el jueves. ¿Quieres que genere una?”
+
+Además:
+
+Arrastrar publicaciones para cambiar fechas.
+Repetir publicaciones.
+Ver publicaciones por cliente/marca.
+Colores por red social.
+Estados: borrador → aprobado → programado → publicado.
+
+Esto para agencias sería importantísimo.
+
+🤖 2. Generador de contenido mucho más avanzado
+
+En lugar de simplemente “escribe un post”, crear un Content Studio.
+
+Por ejemplo:
+
+Input:
+
+“Tengo una empresa de reformas y quiero promocionar una reforma integral de cocina.”
+
+La IA genera:
+
+Copy para Instagram
+Copy para Facebook
+Post de LinkedIn
+Tweet/X
+Guion para Reel
+Guion para TikTok
+Título para YouTube
+Descripción de YouTube
+Hashtags
+CTA
+Ideas de imagen
+Ideas de vídeo
+
+Y lo adapta automáticamente a cada plataforma.
+
+🎨 3. Generación de imágenes y vídeos
+
+Muy potente para diferenciar Social Panel.
+
+Desde el propio panel:
+
+Crear contenido → Generar imagen
+
+Y opciones:
+
+Imagen publicitaria
+Carrusel
+Story
+Thumbnail
+Banner
+Imagen para LinkedIn
+Imagen para Google Business
+
+Y posteriormente:
+
+Imagen → convertir en Reel/TikTok
+
+Con:
+
+subtítulos
+música
+animaciones
+transiciones
+voz IA
+avatar IA, si quieres llegar tan lejos.
+📊 4. Analytics realmente útil
+
+No limitarse a:
+
+Likes: 423
+
+Sino convertir los datos en información accionable.
+
+Por ejemplo:
+
+📈 Tus Reels generan un 42% más de alcance que las publicaciones estáticas.
+
+🕐 Tu mejor hora de publicación es entre 19:00–20:00.
+
+🎯 Los contenidos sobre reformas de cocina generan 2,3× más interacción.
+
+⚠️ Tu engagement ha caído un 18% respecto al mes anterior.
+
+Y una función brutal:
+
+“¿Qué debería publicar esta semana?”
+
+La IA analiza las métricas y propone contenido basándose en lo que mejor funciona.
+
+🧠 5. IA que aprende de cada cuenta
+
+Esto sería uno de los grandes diferenciales.
+
+Cada cliente tendría un perfil de marca:
+
+Marca
+
+Sector
+Público objetivo
+Tono
+Palabras prohibidas
+Palabras favoritas
+Servicios
+Productos
+Competidores
+Colores
+Logo
+Estilo visual
+Ejemplos de publicaciones
+
+Entonces la IA deja de ser genérica.
+
+Por ejemplo:
+
+“Genera 5 posts para esta semana.”
+
+Y Social Panel sabe automáticamente cómo habla esa empresa.
+
+🔎 6. Analizador de competidores
+
+Introduces:
+
+@competidor1
+@competidor2
+@competidor3
+
+Y Social Panel analiza:
+
+frecuencia de publicación
+engagement
+formatos
+hashtags
+temas
+crecimiento
+publicaciones con mejor rendimiento
+horarios
+tipos de contenido
+
+Y genera:
+
+“Esto es lo que está funcionando en tu sector.”
+
+Incluso:
+
+“Tu competidor está obteniendo mucho alcance con vídeos de antes/después. Te recomiendo crear una serie similar.”
+
+💡 7. Generador automático de ideas
+
+Un botón:
+
+✨ Generar ideas
+
+Y devuelve:
+
+Idea	Formato	Red	Potencial
+Antes/después reforma	Reel	Instagram	🔥🔥🔥
+5 errores al reformar	Carrusel	Instagram	🔥🔥
+Coste reforma cocina	Vídeo	TikTok	🔥🔥🔥
+Caso de éxito	Post	LinkedIn	🔥🔥
+
+Incluso podría generar 30 días de contenido de golpe.
+
+🔄 8. Reciclaje automático de contenido
+
+Muy interesante.
+
+Una publicación que funcionó bien:
+
+“5 errores al reformar una cocina”
+
+Social Panel podría convertirla automáticamente en:
+
+Reel
+Carrusel
+LinkedIn
+X
+Story
+TikTok
+Newsletter
+
+Y volver a publicarla meses después con otro enfoque.
+
+📥 9. Bandeja de entrada unificada
+
+Esto puede ser muy valioso para empresas y agencias.
+
+Un solo inbox:
+
+Instagram + Facebook + LinkedIn + X + etc.
+
+Y responder desde Social Panel.
+
+Con IA:
+
+“Sugerir respuesta”
+
+Ejemplo:
+
+Cliente:
+
+“¿Cuánto cuesta una reforma de baño?”
+
+IA:
+
+“¡Hola! El precio depende de los metros y materiales. Si quieres, podemos ayudarte a preparar un presupuesto…”
+
+Y además:
+
+Detectar intención
+
+🟢 Cliente potencial
+🔵 Consulta
+🟡 Soporte
+🔴 Queja
+🧲 10. Social CRM
+
+Aquí Social Panel empieza a ser mucho más interesante comercialmente.
+
+Cuando alguien escribe:
+
+“Estoy interesado en contrataros.”
+
+Social Panel puede crear automáticamente:
+
+Lead
+
+Nombre
+Usuario
+Red social
+Mensaje
+Fecha
+Empresa
+Estado
+
+Y estados:
+
+Nuevo → Contactado → Presupuesto → Ganado → Perdido
+
+Esto permitiría medir:
+
+Redes → Leads → Clientes → Facturación
+
+Eso es muchísimo más potente que medir likes.
+
+📈 11. ROI de redes sociales
+
+Especialmente para empresas.
+
+En lugar de:
+
+Instagram: 50.000 impresiones
+
+Mostrar:
+
+Instagram generó 23 leads → 6 presupuestos → 2 clientes → 4.200 € estimados de facturación
+
+Aunque inicialmente tenga que introducirse parte de la información manualmente.
+
+📝 12. Aprobación de contenido para agencias
+
+Si Cloudimo/Social Panel va dirigido también a agencias:
+
+Agencia crea contenido → Cliente recibe → Cliente aprueba/rechaza
+
+El cliente puede:
+
+✅ Aprobar
+
+❌ Rechazar
+
+💬 Pedir cambios
+
+Y dejar comentarios.
+
+Esto puede ser una función premium.
+
+👥 13. Multiempresa / multicuenta
+
+Importantísimo si quieres venderlo B2B.
+
+Una agencia:
+
+Agencia X
+
+→ Cliente A
+→ Cliente B
+→ Cliente C
+→ Cliente D
+
+Cada cliente tiene:
+
+Redes
+Calendario
+Analytics
+Marca
+Usuarios
+Permisos
+
+Y la agencia lo administra todo desde un único panel.
+
+📄 14. Informes automáticos
+
+Botón:
+
+Generar informe mensual
+
+Y automáticamente:
+
+Informe Social Media — Agosto 2026
+
+Seguidores
+Crecimiento
+Alcance
+Engagement
+Publicaciones
+Mejores contenidos
+Peores contenidos
+Comparativa mensual
+Leads
+Recomendaciones IA
+
+Y PDF con branding de la agencia.
+
+Esto tiene muchísimo valor comercial porque la agencia puede enviárselo directamente al cliente.
+
+🔥 15. “Social Score”
+
+Yo incluso crearía una métrica propia.
+
+Por ejemplo:
+
+SOCIAL SCORE
+
+82/100
+
+Calculado según:
+
+frecuencia
+engagement
+crecimiento
+alcance
+consistencia
+conversión
+calidad del contenido
+
+Y:
+
+Para llegar a 90/100:
+
+Publica 2 Reels adicionales/semana.
+Mejora el CTA.
+Publica entre 19:00 y 21:00.
+Reduce contenido promocional.
+
+Es muy fácil de entender para un cliente.
