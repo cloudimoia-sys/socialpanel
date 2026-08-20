@@ -1,8 +1,12 @@
 import { z } from "zod";
+import { FONT_FAMILIES } from "@/domain/fonts";
 import { AppError } from "@/lib/logger";
 import { run } from "@/lib/route";
 import { adminClient } from "@/lib/supabase";
 import { requireCurrentTenant, requireTenantRole } from "@/lib/tenant";
+
+const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/, "color en formato #RRGGBB");
+const fontIds = FONT_FAMILIES.map((f) => f.id) as [string, ...string[]];
 
 /**
  * Perfil de marca: el formulario que rellena la empresa una vez y alimenta
@@ -29,6 +33,13 @@ const bodySchema = z.object({
     })
     .default("Europe/Madrid"),
   publish_hour: z.number().int().min(0).max(23).default(10),
+  accent_color: hex.default("#1B5FA9"),
+  text_color: hex.default("#FFFFFF"),
+  // Contra la lista real de assets/fonts/, no texto libre: un valor inventado
+  // aquí haría que compose.ts cayera en silencio a Poppins, y el cliente no
+  // tendría forma de saber por qué su tipografía elegida nunca aparece.
+  font_family: z.enum(fontIds).default("Poppins"),
+  logo_asset_id: z.string().uuid().nullable().default(null),
   // Consultas de búsqueda, no categorías: "implantes dentales nueva técnica"
   // da mejores resultados que "odontología".
   news_topics: z.array(z.string().min(2).max(120)).max(6).default([]),
@@ -50,14 +61,33 @@ const bodySchema = z.object({
 export async function GET() {
   return run(async () => {
     const tenant = await requireCurrentTenant();
+    const db = adminClient();
 
-    const { data } = await adminClient()
+    const { data } = await db
       .from("brand_profiles")
       .select("*")
       .eq("tenant_id", tenant.tenantId)
       .maybeSingle();
 
-    return { brand: data };
+    let logoUrl: string | null = null;
+    if (data?.logo_asset_id) {
+      const { data: asset } = await db
+        .from("assets")
+        .select("storage_path")
+        // Filtro por tenant además del id: aunque logo_asset_id ya se validó
+        // al guardarlo, esta lectura no confía en esa validación pasada — si
+        // algún día ese dato llegara mal por otra vía, aquí no se sirve.
+        .eq("id", data.logo_asset_id)
+        .eq("tenant_id", tenant.tenantId)
+        .maybeSingle();
+
+      if (asset) {
+        const { data: signed } = await db.storage.from("media").createSignedUrl(asset.storage_path, 3600);
+        logoUrl = signed?.signedUrl ?? null;
+      }
+    }
+
+    return { brand: data, logoUrl };
   });
 }
 
@@ -67,7 +97,27 @@ export async function PUT(request: Request) {
     const tenant = await requireCurrentTenant();
     requireTenantRole(tenant, ["owner", "admin"]);
 
-    const { error } = await adminClient()
+    const db = adminClient();
+
+    // El asset tiene que ser de este tenant. Sin esta comprobación, alguien
+    // podría apuntar logo_asset_id al asset de OTRO cliente con solo conocer
+    // su UUID, y sus piezas generadas empezarían a llevar un logo ajeno.
+    if (body.logo_asset_id) {
+      const { data: asset } = await db
+        .from("assets")
+        .select("id, kind")
+        .eq("id", body.logo_asset_id)
+        .eq("tenant_id", tenant.tenantId)
+        .maybeSingle();
+
+      if (!asset) throw new AppError("Ese archivo no pertenece a tu cuenta.", 403);
+      // El logo se dibuja con `loadImage()` en compose.ts: un vídeo ahí no
+      // fallaría con un mensaje claro, fallaría dentro del renderizador de
+      // la próxima pieza que se generase.
+      if (asset.kind !== "image") throw new AppError("El logo tiene que ser una imagen.", 400);
+    }
+
+    const { error } = await db
       .from("brand_profiles")
       .upsert(
         {

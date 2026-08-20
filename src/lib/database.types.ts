@@ -174,6 +174,7 @@ export type BrandProfile = {
   accent_color: string;
   text_color: string;
   font_family: string;
+  logo_asset_id: string | null;
   timezone: string;
   publish_hour: number;
   news_topics: string[];

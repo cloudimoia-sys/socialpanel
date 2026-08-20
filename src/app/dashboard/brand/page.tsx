@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { FONT_FAMILIES } from "@/domain/fonts";
+import { browserClient } from "@/lib/supabase-browser";
 
 /**
  * El formulario que rellena la empresa una vez.
@@ -24,7 +26,13 @@ export default function BrandPage() {
     timezone: "Europe/Madrid",
     publish_hour: 10,
     news_topics: "",
+    accent_color: "#1B5FA9",
+    text_color: "#FFFFFF",
+    font_family: "Poppins",
+    logo_asset_id: null as string | null,
   });
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -46,6 +54,7 @@ export default function BrandPage() {
           news_topics: (json.brand.news_topics ?? []).join("\n"),
           website: json.brand.website ?? "",
         });
+        setLogoUrl(json.logoUrl);
         setIsFirstTime(false);
       }
       setLoaded(true);
@@ -56,6 +65,59 @@ export default function BrandPage() {
     setForm((f) => ({ ...f, [key]: e.target.value }));
     setSaved(false);
   };
+
+  // Mismo flujo en dos pasos que el composer: el navegador sube directo a
+  // Storage con una URL firmada, y el servidor vuelve a validar los bytes
+  // reales antes de registrar el asset — nunca se confía en la extensión.
+  async function uploadLogo(file: File) {
+    setUploadingLogo(true);
+    setError("");
+
+    const signRes = await fetch("/api/uploads/sign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mimeType: file.type, bytes: file.size }),
+    });
+    const signJson = await signRes.json();
+    if (!signRes.ok) {
+      setUploadingLogo(false);
+      setError(signJson.error ?? "No se pudo preparar la subida.");
+      return;
+    }
+
+    const { error: uploadError } = await browserClient()
+      .storage.from("media")
+      .uploadToSignedUrl(signJson.path, signJson.token, file);
+    if (uploadError) {
+      setUploadingLogo(false);
+      setError("No se pudo subir el archivo.");
+      return;
+    }
+
+    const finalizeRes = await fetch("/api/uploads/finalize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: signJson.path }),
+    });
+    const finalizeJson = await finalizeRes.json();
+    setUploadingLogo(false);
+
+    if (!finalizeRes.ok) {
+      setError(finalizeJson.error ?? "No se pudo registrar el archivo.");
+      return;
+    }
+    if (finalizeJson.kind !== "image") {
+      setError("El logo tiene que ser una imagen (JPG, PNG o WebP), no un vídeo.");
+      return;
+    }
+
+    setForm((f) => ({ ...f, logo_asset_id: finalizeJson.id }));
+    // Vista previa inmediata con el propio archivo local: la URL firmada del
+    // servidor no llega hasta guardar, y esperar a eso dejaría la pantalla
+    // sin cambios varios segundos después de una subida que ya terminó.
+    setLogoUrl(URL.createObjectURL(file));
+    setSaved(false);
+  }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -144,6 +206,89 @@ export default function BrandPage() {
           <div className="field">
             <label htmlFor="website">Web (opcional)</label>
             <input id="website" type="text" value={form.website} onChange={set("website")} placeholder="https://cloudimo.es" />
+          </div>
+        </div>
+
+        <div className="card">
+          <h2 className="card-title">Identidad visual</h2>
+          <p className="hint" style={{ marginTop: 0, marginBottom: "var(--s4)" }}>
+            Esto es lo que se usa en las imágenes y carruseles que se generan: la
+            tipografía, los colores y el logo. Cambiarlo no toca lo ya publicado.
+          </p>
+
+          <div className="field">
+            <label>Logo (opcional)</label>
+            <div style={{ display: "flex", alignItems: "center", gap: "var(--s3)" }}>
+              {logoUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={logoUrl}
+                  alt="Logo actual"
+                  style={{
+                    width: "3.5rem",
+                    height: "3.5rem",
+                    objectFit: "contain",
+                    background: "var(--surface-2)",
+                    borderRadius: "var(--r2)",
+                    border: "1px solid var(--border)",
+                  }}
+                />
+              )}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void uploadLogo(file);
+                }}
+              />
+            </div>
+            <p className="muted" style={{ marginBottom: 0 }}>
+              {uploadingLogo ? "Subiendo…" : "JPG, PNG o WebP. Se guarda al pulsar Guardar."}
+            </p>
+          </div>
+
+          <div className="row">
+            <div className="field">
+              <label htmlFor="accent_color">Color de acento</label>
+              <input
+                id="accent_color"
+                type="color"
+                value={form.accent_color}
+                onChange={set("accent_color")}
+                style={{ height: "2.375rem", padding: "0.25rem" }}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="text_color">Color de texto</label>
+              <input
+                id="text_color"
+                type="color"
+                value={form.text_color}
+                onChange={set("text_color")}
+                style={{ height: "2.375rem", padding: "0.25rem" }}
+              />
+            </div>
+          </div>
+
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label htmlFor="font_family">Tipografía</label>
+            <select id="font_family" value={form.font_family} onChange={set("font_family")}>
+              {Object.entries(
+                FONT_FAMILIES.reduce<Record<string, typeof FONT_FAMILIES>>((groups, f) => {
+                  (groups[f.group] ??= []).push(f);
+                  return groups;
+                }, {}),
+              ).map(([group, fonts]) => (
+                <optgroup key={group} label={group}>
+                  {fonts.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name} — {f.note}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
           </div>
         </div>
 

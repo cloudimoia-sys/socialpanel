@@ -2,6 +2,10 @@ import { GlobalFonts, createCanvas, loadImage } from "@napi-rs/canvas";
 import fs from "node:fs";
 import path from "node:path";
 import { AppError, log } from "@/lib/logger";
+import { FONT_FAMILIES } from "./fonts";
+
+export type { FontFamily } from "./fonts";
+export { FONT_FAMILIES } from "./fonts";
 
 /**
  * Composición de texto sobre la imagen generada.
@@ -75,52 +79,6 @@ function ensureFonts(): void {
 
   fontsReady = true;
 }
-
-/**
- * Catálogo de familias que puede elegir cada cliente.
- *
- * Van empaquetadas con el proyecto y no se descargan al vuelo: el render corre
- * en un servidor sin fuentes instaladas, y depender de la red en ese momento
- * significaría publicar piezas con el texto en blanco cuando falle.
- */
-export interface FontFamily {
-  /** Coincide con el prefijo de los archivos en `assets/fonts/`. */
-  id: string;
-  name: string;
-  note: string;
-  group: string;
-  /** Manuscrita: ni se pasa a versales ni aguanta titulares largos. */
-  script?: boolean;
-}
-
-export const FONT_FAMILIES: FontFamily[] = [
-  { id: "Poppins", name: "Poppins", note: "Moderna y cercana", group: "Modernas" },
-  { id: "Montserrat", name: "Montserrat", note: "Versátil, la más usada", group: "Modernas" },
-  { id: "Inter", name: "Inter", note: "Neutra y técnica", group: "Modernas" },
-  { id: "Anton", name: "Anton", note: "Condensada muy pesada", group: "Impacto" },
-  { id: "BebasNeue", name: "Bebas Neue", note: "Condensada en mayúsculas", group: "Impacto" },
-  { id: "ArchivoBlack", name: "Archivo Black", note: "Muy pesada y ancha", group: "Impacto" },
-  { id: "Oswald", name: "Oswald", note: "Condensada legible", group: "Impacto" },
-  { id: "PlayfairDisplay", name: "Playfair Display", note: "Serif editorial", group: "Serif" },
-  { id: "LibreBaskerville", name: "Libre Baskerville", note: "Clásica y seria", group: "Serif" },
-  { id: "RobotoSlab", name: "Roboto Slab", note: "Robusta, de oficio", group: "Serif" },
-  { id: "Nunito", name: "Nunito", note: "Redondeada y amable", group: "Amables" },
-  { id: "Quicksand", name: "Quicksand", note: "Ligera y suave", group: "Amables" },
-  {
-    id: "Caveat",
-    name: "Caveat",
-    note: "Manuscrita — cuesta leerla en titulares largos",
-    group: "Manuscritas",
-    script: true,
-  },
-  {
-    id: "Pacifico",
-    name: "Pacifico",
-    note: "Manuscrita retro — mejor en frases cortas",
-    group: "Manuscritas",
-    script: true,
-  },
-];
 
 /**
  * Resuelve la pareja de pesos de una familia.
