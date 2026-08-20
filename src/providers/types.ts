@@ -228,6 +228,34 @@ export interface PlatformMetrics {
   unavailable?: string;
 }
 
+/**
+ * Conversación de mensajes directos.
+ *
+ * Solo Instagram la soporta hoy (Upload-Post no expone esto para el resto de
+ * redes), así que `platform` va en cada conversación para que la interfaz
+ * pueda decirlo sin necesidad de que se lo pase quien la llama.
+ */
+export interface Conversation {
+  id: string;
+  platform: string;
+  /**
+   * El identificador que exige `dms/send` para contestar (el IGSID de Meta),
+   * que no tiene por qué coincidir con `id` — en la API de Meta el ID de la
+   * conversación y el ID del participante son cosas distintas.
+   */
+  recipientId: string;
+  participantName: string;
+  lastMessage: string;
+  lastMessageAt: string | null;
+}
+
+export interface DirectMessage {
+  id: string;
+  from: "business" | "them";
+  text: string;
+  sentAt: string | null;
+}
+
 export interface PublishProvider {
   readonly name: string;
   listAccounts(tenantRef: string, cred: Credential): Promise<ConnectedAccount[]>;
@@ -240,4 +268,21 @@ export interface PublishProvider {
     platforms: string[],
     cred: Credential,
   ): Promise<PlatformMetrics[]>;
+  /**
+   * Bandeja de mensajes directos. Vacío en cualquier red que no la soporte
+   * (hoy, todas menos Instagram) — no es un error, es un hueco del propio
+   * proveedor.
+   */
+  listConversations(tenantRef: string, cred: Credential): Promise<Conversation[]>;
+  /**
+   * `dms/send` solo exige plataforma, destinatario y texto — no un ID de
+   * conversación, así que no se pide aquí.
+   */
+  sendMessage(
+    tenantRef: string,
+    platform: string,
+    recipientId: string,
+    text: string,
+    cred: Credential,
+  ): Promise<void>;
 }

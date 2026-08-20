@@ -1,6 +1,7 @@
 import { AppError, log } from "@/lib/logger";
 import type {
   ConnectedAccount,
+  Conversation,
   Credential,
   PlatformMetrics,
   PublishProvider,
@@ -285,6 +286,66 @@ export class UploadPostPublisher implements PublishProvider {
         measuring: platform === "facebook" ? facebookPageName : undefined,
       };
     });
+  }
+
+  /**
+   * Conversaciones de mensajes directos.
+   *
+   * Solo Instagram lo soporta hoy en Upload-Post — se comprobó contra la API
+   * real, no supuesto de la documentación. El parseo es tolerante a distintos
+   * nombres de campo a propósito: la documentación no publica un ejemplo de
+   * respuesta con datos reales, así que no hay forma de conocer la forma
+   * exacta sin una conversación de verdad, y falla mejor devolviendo un texto
+   * vacío que reventando por un campo que no coincide.
+   */
+  async listConversations(tenantRef: string, cred: Credential): Promise<Conversation[]> {
+    let body: { success?: boolean; conversations?: Record<string, unknown>[] };
+    try {
+      body = await call(
+        `/uploadposts/dms/conversations?platform=instagram&user=${encodeURIComponent(tenantRef)}`,
+        cred,
+      );
+    } catch (cause) {
+      // Falta el permiso de Meta, o Instagram no está conectado: no es un
+      // motivo para tumbar toda la bandeja si hubiera más redes en el futuro.
+      log.warn("no se pudieron listar las conversaciones", { error: String(cause) });
+      return [];
+    }
+
+    const pick = (obj: Record<string, unknown>, ...keys: string[]): string => {
+      for (const key of keys) {
+        const value = obj[key];
+        if (typeof value === "string" && value) return value;
+        if (typeof value === "number") return String(value);
+      }
+      return "";
+    };
+
+    return (body.conversations ?? []).map((c) => ({
+      id: pick(c, "id", "conversation_id"),
+      platform: "instagram",
+      recipientId: pick(c, "recipient_id", "participant_id", "igsid", "user_id", "id"),
+      participantName: pick(c, "participant_name", "username", "name") || "(sin nombre)",
+      lastMessage: pick(c, "last_message", "message", "snippet"),
+      lastMessageAt: pick(c, "last_message_at", "updated_time", "timestamp") || null,
+    }));
+  }
+
+  async sendMessage(
+    tenantRef: string,
+    platform: string,
+    recipientId: string,
+    text: string,
+    cred: Credential,
+  ): Promise<void> {
+    const body = await call<{ success?: boolean; error?: string }>("/uploadposts/dms/send", cred, {
+      method: "POST",
+      body: JSON.stringify({ platform, user: tenantRef, recipient_id: recipientId, message: text }),
+    });
+
+    if (body.success === false) {
+      throw new AppError(body.error ?? "No se pudo enviar el mensaje.", 502);
+    }
   }
 
   async connectUrl(tenantRef: string, redirectTo: string, cred: Credential): Promise<string> {

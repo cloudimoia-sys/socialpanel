@@ -6,6 +6,7 @@ import {
   IconCalendar,
   IconCard,
   IconChart,
+  IconChat,
   IconDocument,
   IconFolder,
   IconHome,
@@ -38,6 +39,7 @@ const GROUPS = [
       { href: "/dashboard/queue", label: "Cola", Icon: IconList },
       { href: "/dashboard/content", label: "Contenido", Icon: IconFolder },
       { href: "/dashboard/kanban", label: "Tablero", Icon: IconLayout },
+      { href: "/dashboard/inbox", label: "Mensajes", Icon: IconChat },
     ],
   },
   {

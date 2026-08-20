@@ -155,6 +155,12 @@ export const IconDocument = (p: Props) => (
   </svg>
 );
 
+export const IconChat = (p: Props) => (
+  <svg {...base} {...p}>
+    <path d="M4 5h16v11H8l-4 4z" />
+  </svg>
+);
+
 export const IconList = (p: Props) => (
   <svg {...base} {...p}>
     <path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01" />
