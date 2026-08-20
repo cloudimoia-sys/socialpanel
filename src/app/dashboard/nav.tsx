@@ -6,12 +6,15 @@ import {
   IconCalendar,
   IconCard,
   IconChart,
+  IconFolder,
   IconHome,
   IconInbox,
+  IconLayout,
   IconList,
   IconMail,
   IconPlus,
   IconShare,
+  IconUsers,
 } from "@/app/icons";
 
 /**
@@ -32,6 +35,8 @@ const GROUPS = [
       { href: "/dashboard/plan", label: "Plan", Icon: IconInbox },
       { href: "/dashboard/new", label: "Nuevo post", Icon: IconPlus },
       { href: "/dashboard/queue", label: "Cola", Icon: IconList },
+      { href: "/dashboard/content", label: "Contenido", Icon: IconFolder },
+      { href: "/dashboard/kanban", label: "Tablero", Icon: IconLayout },
     ],
   },
   {
@@ -43,6 +48,7 @@ const GROUPS = [
     links: [
       { href: "/dashboard/brand", label: "Empresa", Icon: IconBuilding },
       { href: "/dashboard/accounts", label: "Redes", Icon: IconShare },
+      { href: "/dashboard/team", label: "Equipo", Icon: IconUsers },
       { href: "/dashboard/billing", label: "Suscripción", Icon: IconCard },
     ],
   },

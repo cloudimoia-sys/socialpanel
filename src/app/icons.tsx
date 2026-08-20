@@ -114,6 +114,40 @@ export const IconCard = (p: Props) => (
   </svg>
 );
 
+export const IconStar = (p: Props) => (
+  <svg {...base} {...p}>
+    <path d="M12 3.5l2.6 5.6 6.1.6-4.6 4.2 1.3 6-5.4-3.1-5.4 3.1 1.3-6-4.6-4.2 6.1-.6z" />
+  </svg>
+);
+
+export const IconTrophy = (p: Props) => (
+  <svg {...base} {...p}>
+    <path d="M8 4h8v6a4 4 0 0 1-8 0z" />
+    <path d="M8 5H4v2a4 4 0 0 0 4 3M16 5h4v2a4 4 0 0 1-4 3M10 15v3M14 15v3M8 21h8" />
+  </svg>
+);
+
+export const IconLayout = (p: Props) => (
+  <svg {...base} {...p}>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <path d="M9 4v16M15 4v16" />
+  </svg>
+);
+
+export const IconUsers = (p: Props) => (
+  <svg {...base} {...p}>
+    <circle cx="9" cy="8" r="3.2" />
+    <path d="M2.5 20c.6-3.7 3.3-6 6.5-6s5.9 2.3 6.5 6" />
+    <path d="M16 4.5c1.5.4 2.5 1.7 2.5 3.2s-1 2.8-2.5 3.2M20 20c-.4-2.5-1.6-4.4-3.3-5.4" />
+  </svg>
+);
+
+export const IconFolder = (p: Props) => (
+  <svg {...base} {...p}>
+    <path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" />
+  </svg>
+);
+
 export const IconList = (p: Props) => (
   <svg {...base} {...p}>
     <path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01" />

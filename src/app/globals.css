@@ -1121,6 +1121,58 @@ textarea {
   }
 }
 
+/* --------------------------------------------------------------- tablero -- */
+
+.kanban-scroll {
+  overflow-x: auto;
+}
+
+.kanban {
+  display: flex;
+  gap: var(--s3);
+  align-items: flex-start;
+  /* Ancho mínimo para que quepan siete columnas y sea el contenedor el que
+     scrollea, nunca la página entera. */
+  min-width: min-content;
+}
+
+.kanban-col {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r3);
+  padding: var(--s3);
+  width: 16rem;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.kanban-col-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: .8125rem;
+  padding-bottom: var(--s2);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--s1);
+}
+
+.kanban-card {
+  display: block;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: var(--s3);
+  color: var(--text);
+  transition: border-color 140ms ease;
+}
+
+.kanban-card:hover {
+  border-color: var(--border-strong);
+  text-decoration: none;
+}
+
 /* ------------------------------------------------------------ tabla densa -- */
 
 .table-wrap {
@@ -1174,6 +1226,19 @@ textarea {
 .table .num {
   font-variant-numeric: tabular-nums;
   text-align: right;
+}
+
+/* Los botones de favorito/ganador son SVG de contorno (icons.tsx prohíbe
+   emoji: cambian de aspecto entre sistemas y no heredan color). Marcados se
+   rellenan del color de marca en vez de solo cambiar de icono, para que el
+   estado se note sin tener que fijarse en la forma exacta del trazo. */
+.icon-toggle[aria-pressed="true"] {
+  color: var(--brand);
+  border-color: var(--brand);
+}
+
+.icon-toggle[aria-pressed="true"] svg {
+  fill: currentColor;
 }
 
 .muted {
