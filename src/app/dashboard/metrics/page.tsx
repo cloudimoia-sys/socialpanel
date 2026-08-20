@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { IconAlert, IconChart } from "@/app/icons";
 import { PlatformIcon, platformLabel } from "@/app/platform-icons";
+import { AreaChart } from "@/app/dashboard/chart";
 
 interface Metrics {
   platform: string;
@@ -172,7 +173,24 @@ export default function MetricsPage() {
                   </div>
                 </div>
 
-                <Sparkline points={m.timeseries} />
+                {/* La gráfica grande solo cuando hay algo que enseñar; si la
+                    serie está toda a cero cae a la minigráfica, que ya sabe
+                    no dibujarse. */}
+                {m.timeseries.some((p) => p.value > 0) ? (
+                  <AreaChart
+                    points={m.timeseries.map((p) => ({
+                      label: new Date(`${p.date}T00:00:00`).toLocaleDateString("es-ES", {
+                        day: "numeric",
+                        month: "short",
+                      }),
+                      value: p.value,
+                    }))}
+                    height={200}
+                    label={`Evolución de ${IMPRESSIONS_LABEL[m.platform] ?? "visibilidad"} en ${platformLabel(m.platform)}`}
+                  />
+                ) : (
+                  <Sparkline points={m.timeseries} />
+                )}
               </>
             )}
           </article>

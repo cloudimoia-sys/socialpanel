@@ -185,6 +185,23 @@ code {
   gap: 2px;
 }
 
+/* Los enlaces van agrupados por para qué sirven (trabajo diario, análisis,
+   operación). Con quince secciones, una lista plana obliga a leerlas todas
+   cada vez para encontrar una. */
+.nav-group + .nav-group {
+  margin-top: var(--s4);
+}
+
+.nav-group-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 0 var(--s3);
+  margin-bottom: var(--s2);
+}
+
 .navlink {
   display: flex;
   align-items: center;
@@ -263,6 +280,16 @@ main {
   .nav {
     flex-direction: row;
     gap: var(--s1);
+  }
+
+  /* En la barra horizontal los grupos se aplanan: los rótulos ocuparían más
+     que los propios enlaces. */
+  .sidebar .nav-group {
+    display: contents;
+  }
+
+  .nav-group-label {
+    display: none;
   }
 
   .navlink {
@@ -852,6 +879,188 @@ textarea {
   stroke-linejoin: round;
   stroke-linecap: round;
   vector-effect: non-scaling-stroke;
+}
+
+/* ------------------------------------------------------ indicadores (KPI) -- */
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--s3);
+  margin-bottom: var(--s4);
+}
+
+.kpi {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r3);
+  padding: var(--s3) var(--s4);
+}
+
+.kpi-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  margin-bottom: var(--s3);
+}
+
+.kpi-head svg {
+  width: 1rem;
+  height: 1rem;
+  color: var(--text-faint);
+}
+
+.kpi .value {
+  font-size: 1.625rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  /* Los dígitos alineados evitan que la cifra "baile" al actualizarse. */
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.kpi .label {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  margin-top: 0.15rem;
+}
+
+/* La variación se lee por color Y por signo: solo por color se pierde para
+   quien no distingue rojo de verde. */
+.delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--r1);
+}
+
+.delta-up {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.delta-down {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.delta-flat {
+  background: var(--surface-3);
+  color: var(--text-muted);
+}
+
+/* --------------------------------------------------------------- gráfica -- */
+
+.chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: var(--chart-h, 260px);
+}
+
+.chart-grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.chart-axis {
+  fill: var(--text-faint);
+  font-size: 11px;
+  font-family: inherit;
+}
+
+.chart-line {
+  fill: none;
+  stroke: var(--brand);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.chart-dot {
+  fill: var(--brand);
+  stroke: var(--bg);
+  stroke-width: 2.5;
+}
+
+.chart-value {
+  fill: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Solo aparece al pasar el ratón: fija sería una raya sin significado. */
+.chart-cursor {
+  stroke: var(--border-strong);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0;
+}
+
+.chart-cursor[data-visible] {
+  opacity: 1;
+}
+
+/* ------------------------------------------------------------ tabla densa -- */
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r3);
+  background: var(--surface);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  /* Por debajo de esto las columnas se apelmazan y deja de leerse; el
+     contenedor scrollea en horizontal en vez de romper la página. */
+  min-width: 40rem;
+}
+
+.table th {
+  text-align: left;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: var(--s3);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: var(--s3);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  vertical-align: middle;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table tbody tr:hover td {
+  background: var(--surface-2);
+}
+
+.table td strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.table .num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .muted {
