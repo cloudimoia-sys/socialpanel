@@ -1,5 +1,5 @@
 import { NonRetriableError } from "inngest";
-import { brandContext, loadBrand } from "@/domain/brand";
+import { brandContext, loadBrand, loadBrandLogo } from "@/domain/brand";
 import { composeOverlay } from "@/domain/compose";
 import { assertBudget, recordUsage } from "@/domain/usage";
 import { adminClient } from "@/lib/supabase";
@@ -101,6 +101,7 @@ export const generateContent = inngest.createFunction(
           accent: brand?.accent_color ?? "#1B5FA9",
           textColor: brand?.text_color ?? "#FFFFFF",
           fontFamily: brand?.font_family ?? "Poppins-Bold",
+          logo: (await loadBrandLogo(tenantId, brand?.logo_asset_id ?? null)) ?? undefined,
         });
 
         // Se guarda como asset nuevo: el original del cliente no se toca, por
@@ -160,6 +161,7 @@ export const generateContent = inngest.createFunction(
               accent: brand?.accent_color ?? "#1B5FA9",
               textColor: brand?.text_color ?? "#FFFFFF",
               fontFamily: brand?.font_family ?? "Poppins-Bold",
+              logo: (await loadBrandLogo(tenantId, brand?.logo_asset_id ?? null)) ?? undefined,
             });
             mime = "image/png";
           } catch (cause) {

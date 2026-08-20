@@ -46,6 +46,8 @@ export interface ComposeOptions {
   accent: string;
   textColor: string;
   fontFamily: string;
+  /** Logo del negocio, si lo ha subido. Nunca bloquea la pieza si falla. */
+  logo?: Buffer;
 }
 
 // -----------------------------------------------------------------------------
@@ -253,6 +255,11 @@ export interface ComposeSlideOptions {
   footer?: string;
   /** 4:5 ocupa más alto en el muro que 1:1, así que rinde mejor. */
   ratio?: "1:1" | "4:5";
+  /**
+   * Logo del negocio, si lo ha subido. Abajo a la derecha y no arriba: esa
+   * esquina la ocupa ya la numeración "X/Y" de la diapositiva.
+   */
+  logo?: Buffer;
 }
 
 /**
@@ -418,6 +425,14 @@ export async function composeSlide(options: ComposeSlideOptions): Promise<Buffer
     ctx.fillText(cased(options.footer), pad, height - pad);
   }
 
+  if (options.logo) {
+    try {
+      await drawLogo(ctx, options.logo, width, height, pad, "bottom-right");
+    } catch (cause) {
+      log.warn("no se pudo componer el logo en la diapositiva", { error: String(cause) });
+    }
+  }
+
   return canvas.toBuffer("image/png");
 }
 
@@ -451,7 +466,58 @@ export async function composeOverlay(options: ComposeOptions): Promise<Buffer> {
     drawHeadline(ctx, options, font, lightFont, width, height, pad, maxWidth);
   }
 
+  // Después de la plantilla y no antes: siempre encima del velo o la banda,
+  // nunca tapado por ellos. Un logo que falla no debe tirar la pieza entera
+  // — ya está pagada la generación de la imagen de fondo.
+  if (options.logo) {
+    try {
+      await drawLogo(ctx, options.logo, width, height, pad, "top-right");
+    } catch (cause) {
+      log.warn("no se pudo componer el logo", { error: String(cause) });
+    }
+  }
+
   return canvas.toBuffer("image/png");
+}
+
+/**
+ * Insignia del logo en la esquina superior derecha.
+ *
+ * Ese hueco queda libre en las tres plantillas: `headline` centra el texto,
+ * `band` lo deja abajo, y `corner` lo pone arriba a la IZQUIERDA — las tres
+ * dejan la esquina superior derecha sin nada encima.
+ *
+ * La placa semitransparente detrás no es decorativa: un logo sin fondo propio
+ * (PNG transparente, o claro) desaparecería sobre una foto clara, igual que
+ * el velo de `drawHeadline` existe para que el texto blanco no desaparezca.
+ */
+async function drawLogo(
+  ctx: Ctx,
+  logo: Buffer,
+  width: number,
+  height: number,
+  pad: number,
+  corner: "top-right" | "bottom-right" = "top-right",
+): Promise<void> {
+  const image = await loadImage(logo);
+
+  const badge = Math.round(width * 0.11);
+  const plate = Math.round(badge * 1.35);
+  const x = width - pad - plate;
+  const y = corner === "top-right" ? pad * 0.6 : height - pad * 0.6 - plate;
+
+  ctx.fillStyle = "rgba(9, 11, 14, 0.55)";
+  ctx.fillRect(x, y, plate, plate);
+
+  // El logo puede no ser cuadrado: se ajusta al hueco conservando su
+  // proporción real en vez de deformarlo para llenar la placa.
+  const ratio = image.width / image.height;
+  const inner = plate - Math.round(plate * 0.22);
+  const [dw, dh] = ratio > 1 ? [inner, inner / ratio] : [inner * ratio, inner];
+  const dx = x + (plate - dw) / 2;
+  const dy = y + (plate - dh) / 2;
+
+  ctx.drawImage(image, dx, dy, dw, dh);
 }
 
 /**
