@@ -1008,6 +1008,119 @@ textarea {
   opacity: 1;
 }
 
+/* ------------------------------------------------------------ calendario -- */
+
+.cal-weekdays,
+.cal-week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.cal-weekdays {
+  margin-bottom: var(--s2);
+  font-size: 0.75rem;
+  color: var(--text-faint);
+  text-align: center;
+  font-weight: 600;
+}
+
+.cal-week + .cal-week {
+  margin-top: 4px;
+}
+
+.cal-day {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s1);
+  /* Alto fijo para que la rejilla no salte según cuántas publicaciones tenga
+     cada día: un calendario que cambia de forma al navegar marea. */
+  min-height: 4.25rem;
+  padding: var(--s2);
+  border-radius: var(--r2);
+  border: 1px solid transparent;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.cal-day:hover {
+  border-color: var(--border-strong);
+}
+
+.cal-day[data-outside] {
+  color: var(--text-faint);
+  background: transparent;
+}
+
+.cal-day[data-today] .cal-num {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.cal-day[data-selected] {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.cal-num {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r1);
+}
+
+.cal-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: center;
+}
+
+/* El estado se codifica en color Y en tamaño constante: son marcas de
+   recuento, no un gráfico — lo que importa es cuántas hay y de qué tipo. */
+.cal-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+
+.cal-dot[data-status="scheduled"],
+.cal-dot[data-status="publishing"] {
+  background: var(--brand);
+}
+
+.cal-dot[data-status="published"] {
+  background: var(--ok);
+}
+
+.cal-dot[data-status="failed"] {
+  background: var(--danger);
+}
+
+.cal-more {
+  font-size: 0.6875rem;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .cal-day {
+    min-height: 3.25rem;
+    padding: var(--s1);
+  }
+}
+
 /* ------------------------------------------------------------ tabla densa -- */
 
 .table-wrap {

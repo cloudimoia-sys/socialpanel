@@ -7,6 +7,8 @@ import {
   IconCard,
   IconChart,
   IconHome,
+  IconInbox,
+  IconList,
   IconMail,
   IconPlus,
   IconShare,
@@ -26,8 +28,10 @@ const GROUPS = [
     label: "General",
     links: [
       { href: "/dashboard", label: "Panel", Icon: IconHome },
-      { href: "/dashboard/plan", label: "Plan", Icon: IconCalendar },
+      { href: "/dashboard/calendar", label: "Calendario", Icon: IconCalendar },
+      { href: "/dashboard/plan", label: "Plan", Icon: IconInbox },
       { href: "/dashboard/new", label: "Nuevo post", Icon: IconPlus },
+      { href: "/dashboard/queue", label: "Cola", Icon: IconList },
     ],
   },
   {
