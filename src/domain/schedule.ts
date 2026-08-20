@@ -16,10 +16,16 @@
  * desplazamiento real de ese día concreto, así que el horario de verano queda
  * contemplado sin tablas ni dependencias.
  */
-export function zonedDateToUtc(date: string, hour: number, timeZone: string): Date | null {
+export function zonedDateToUtc(
+  date: string,
+  hour: number,
+  timeZone: string,
+  minute = 0,
+): Date | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
 
-  const guess = new Date(`${date}T${String(hour).padStart(2, "0")}:00:00Z`);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const guess = new Date(`${date}T${pad(hour)}:${pad(minute)}:00Z`);
   if (Number.isNaN(guess.getTime())) return null;
 
   try {

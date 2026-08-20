@@ -103,9 +103,31 @@ export type Post = {
   /** Presente solo si el post se creó a partir de una noticia elegida a mano. */
   source_url: string | null;
   source_title: string | null;
+  /** Marcado a mano por el operador para encontrarlo rápido. */
+  is_favorite: boolean;
+  /** Funcionó bien y merece reutilizarse. Ver 0013_library_and_slots.sql. */
+  is_winner: boolean;
   created_at: Timestamptz;
   updated_at: Timestamptz;
   deleted_at: Timestamptz | null;
+};
+
+/**
+ * Rejilla semanal de publicación por red.
+ *
+ * `at_time` es hora local del negocio sin zona: un hueco recurrente es un
+ * acuerdo de reloj de pared y guardarlo en UTC lo desplazaría al cambiar la
+ * hora. Ver 0013_library_and_slots.sql.
+ */
+export type PublishSlot = {
+  id: string;
+  tenant_id: string;
+  platform: string;
+  /** 0 = domingo … 6 = sábado, igual que `Date.getDay()`. */
+  weekday: number;
+  /** "HH:MM:SS" */
+  at_time: string;
+  created_at: Timestamptz;
 };
 
 export type PostTarget = {
@@ -211,6 +233,10 @@ export type Database = {
   public: {
     Tables: {
       allowed_signups: Table<AllowedSignup, Pick<AllowedSignup, "email"> & Partial<AllowedSignup>>;
+      publish_slots: Table<
+        PublishSlot,
+        Pick<PublishSlot, "tenant_id" | "platform" | "weekday" | "at_time"> & Partial<PublishSlot>
+      >;
       tenants: Table<Tenant, Pick<Tenant, "name"> & Partial<Tenant>>;
       memberships: Table<Membership, Omit<Membership, "created_at"> & Partial<Membership>>;
       provider_credentials: Table<
