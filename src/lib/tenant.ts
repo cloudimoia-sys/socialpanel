@@ -1,5 +1,17 @@
+import { cookies } from "next/headers";
 import { AppError, log } from "./logger";
 import { adminClient, userClient } from "./supabase";
+
+/**
+ * Cookie de tenant activo, para quien pertenece a varios (agencias).
+ *
+ * Su valor NUNCA se usa sin comprobar antes que existe membership real para
+ * (ese tenant, este usuario) — ver `currentTenant()`. Sin esa comprobación,
+ * cambiar el valor de una cookie a mano sería la puerta de entrada a los
+ * datos de un tenant ajeno: es justo la clase de bug que el resto de la app
+ * evita no aceptando nunca un tenantId del cliente sin verificar.
+ */
+export const TENANT_COOKIE = "sp_tenant";
 
 /**
  * Resolución del tenant activo del usuario.
@@ -49,8 +61,12 @@ export async function currentUser() {
 /**
  * Devuelve el tenant del usuario, creándolo en su primer acceso.
  *
- * Si el usuario ya pertenece a varios, se queda con el más antiguo. La
- * selección explícita de tenant se añadirá cuando haga falta.
+ * Por defecto es el más antiguo (`ensure_tenant`), pero quien pertenece a
+ * varios (una agencia con varios clientes) puede haber elegido otro con el
+ * selector — ver `TENANT_COOKIE`. Esa elección se vuelve a comprobar aquí en
+ * cada carga contra `memberships`, nunca se da por buena solo porque la
+ * cookie la nombre: es la única forma de que el selector no abra una vía para
+ * leer datos de un tenant ajeno con solo cambiar una cookie a mano.
  */
 export async function currentTenant(): Promise<ActiveTenant | null> {
   const user = await currentUser();
@@ -61,7 +77,7 @@ export async function currentTenant(): Promise<ActiveTenant | null> {
   // Buscar-o-crear en una sola llamada atómica. Hacerlo en dos sentencias desde
   // aquí abría una ventana en la que varias peticiones concurrentes del mismo
   // usuario creaban cada una su tenant: llegaron a salir 110 para una cuenta.
-  const { data: tenantId, error } = await db.rpc("ensure_tenant", {
+  const { data: defaultTenantId, error } = await db.rpc("ensure_tenant", {
     p_user: user.id,
     p_name: user.email?.split("@")[0] ?? "Mi cuenta",
     p_email: user.email ?? "",
@@ -74,9 +90,28 @@ export async function currentTenant(): Promise<ActiveTenant | null> {
   // Autenticado pero sin invitación: la función devuelve null en vez de crear
   // nada. Se distingue del fallo técnico a propósito, porque lo que procede es
   // explicarlo, no enseñar un error.
-  if (!tenantId) {
+  if (!defaultTenantId) {
     log.info("acceso sin invitacion", { email: user.email });
     throw new AppError("NOT_INVITED", 403);
+  }
+
+  let tenantId: string = defaultTenantId;
+
+  const store = await cookies();
+  const chosen = store.get(TENANT_COOKIE)?.value;
+
+  if (chosen && chosen !== tenantId) {
+    const { data: membership } = await db
+      .from("memberships")
+      .select("tenant_id")
+      .eq("tenant_id", chosen)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    // Sin fila, esa cookie no corresponde a un tenant del que el usuario sea
+    // miembro de verdad: se ignora y se sigue con el de por defecto, en vez
+    // de fallar o de confiar en ella.
+    if (membership) tenantId = chosen;
   }
 
   const [{ data: tenant }, { data: membership }] = await Promise.all([
@@ -99,4 +134,36 @@ export async function currentTenant(): Promise<ActiveTenant | null> {
     role: (membership?.role ?? "owner") as ActiveTenant["role"],
     budgetCents: tenant.budget_cents,
   };
+}
+
+/**
+ * Tenants a los que pertenece el usuario actual, para el selector.
+ *
+ * En dos consultas y no con un `select` embebido: `Database.Relationships`
+ * está declarado vacío en `database.types.ts` (no hay generador de tipos
+ * conectado a Supabase), así que el compilador no puede verificar un join
+ * anidado — mejor dos consultas simples que forzar una sintaxis que el
+ * propio tipo no puede comprobar.
+ */
+export async function listMyTenants(): Promise<{ id: string; name: string }[]> {
+  const supabase = await userClient();
+
+  // RLS (auth_tenant_ids()) ya limita esto a los propios: no hace falta
+  // filtrar por user_id a mano, la política es el límite real.
+  const { data: memberships } = await supabase
+    .from("memberships")
+    .select("tenant_id, created_at")
+    .order("created_at", { ascending: true });
+
+  if (!memberships || memberships.length === 0) return [];
+
+  const ids = memberships.map((m) => m.tenant_id);
+  const { data: tenants } = await supabase.from("tenants").select("id, name").in("id", ids);
+  const byId = new Map((tenants ?? []).map((t) => [t.id, t.name]));
+
+  // Se recorre `memberships` (ya en orden de alta) para conservar el orden;
+  // el resultado de `.in()` no promete devolverlos en ningún orden concreto.
+  return memberships
+    .filter((m) => byId.has(m.tenant_id))
+    .map((m) => ({ id: m.tenant_id, name: byId.get(m.tenant_id)! }));
 }

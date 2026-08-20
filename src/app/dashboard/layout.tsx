@@ -1,8 +1,12 @@
+import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { Credit } from "@/app/credit";
 import { IconLogout } from "@/app/icons";
 import { NavLinks } from "@/app/dashboard/nav";
+import { TenantSwitcher } from "@/app/dashboard/tenant-switcher";
 import { isPlatformAdmin } from "@/lib/admin";
+import { AppError } from "@/lib/logger";
+import { currentTenant, listMyTenants } from "@/lib/tenant";
 
 /**
  * Estructura común del panel.
@@ -17,6 +21,25 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   // un control de acceso.
   const admin = await isPlatformAdmin();
 
+  // El layout envuelve TODAS las páginas de /dashboard, incluida la que ya
+  // capturaba NOT_INVITED para mandar a /sin-acceso. Sin este mismo try/catch
+  // aquí, ese lanzamiento escapa del layout antes de que la página llegue a
+  // ejecutarse, y quien no está invitado ve un error genérico en vez de la
+  // explicación — se descubrió construyendo el selector, no lo tenía antes.
+  let tenant;
+  try {
+    tenant = await currentTenant();
+  } catch (cause) {
+    if (cause instanceof AppError && cause.publicMessage === "NOT_INVITED") {
+      redirect("/sin-acceso");
+    }
+    throw cause;
+  }
+
+  // Sin tenant resuelto no hay nada que listar todavía; evita una consulta
+  // que solo importaría si hubiera selector que pintar.
+  const tenants = tenant ? await listMyTenants() : [];
+
   return (
     <div className="shell">
       <aside className="sidebar">
@@ -24,6 +47,12 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <span className="dot" />
           SocialPanel
         </a>
+
+        {/* Solo con más de un tenant: es la única situación (agencias) en la
+            que hace falta elegir, y para el resto sería ruido. */}
+        {tenant && tenants.length > 1 && (
+          <TenantSwitcher tenants={tenants} activeId={tenant.tenantId} />
+        )}
 
         <NavLinks admin={admin} />
 
