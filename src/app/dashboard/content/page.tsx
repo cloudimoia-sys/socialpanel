@@ -200,6 +200,15 @@ export default function ContentLibraryPage() {
                         >
                           <IconTrophy />
                         </button>
+                        {p.is_winner && (
+                          <a
+                            href={`/dashboard/new?from=${p.id}`}
+                            className="btn btn-ghost btn-sm"
+                            title="Reutilizar este contenido en otro formato"
+                          >
+                            Reutilizar
+                          </a>
+                        )}
                       </div>
                     </td>
                   </tr>

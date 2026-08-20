@@ -15,7 +15,7 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
     const { data: post } = await supabase
       .from("posts")
       .select(
-        "id, status, caption, hashtags, error, asset_id, created_at, scheduled_at, scheduled_platforms, source_url, source_title",
+        "id, status, caption, brief, hashtags, error, asset_id, created_at, scheduled_at, scheduled_platforms, source_url, source_title",
       )
       .eq("id", postId)
       .eq("tenant_id", tenant.tenantId)
@@ -56,6 +56,7 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
       id: post.id,
       status: post.status,
       caption: post.caption,
+      brief: post.brief,
       hashtags: post.hashtags ?? [],
       error: post.error,
       scheduledAt: post.scheduled_at,

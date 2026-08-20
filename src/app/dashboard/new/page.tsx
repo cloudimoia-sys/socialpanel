@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { usePlatforms } from "@/app/dashboard/use-platforms";
 import { PlatformIcon, platformLabel } from "@/app/platform-icons";
@@ -9,14 +9,50 @@ import { browserClient } from "@/lib/supabase-browser";
 
 type MediaMode = "none" | "upload" | "generate-image" | "generate-video" | "generate-infographic";
 
+/**
+ * `useSearchParams()` exige un límite de Suspense en el App Router — sin él,
+ * Next intenta pre-renderizar la página entera de forma estática y falla en
+ * build. Por eso el composer real vive aparte y este solo lo envuelve.
+ */
 export default function ComposerPage() {
+  return (
+    <Suspense fallback={null}>
+      <ComposerForm />
+    </Suspense>
+  );
+}
+
+function ComposerForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const reuseFromId = searchParams.get("from");
 
   const [brief, setBrief] = useState("");
   const [tone, setTone] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
   const [platforms, setPlatforms] = useState<string[]>([]);
+  const [reusingFrom, setReusingFrom] = useState<{ id: string; text: string } | null>(null);
   const connected = usePlatforms();
+
+  // Reciclaje de contenido: precarga la idea con el texto de un post ya
+  // marcado como ganador, para reutilizarlo en otro formato. No se copia el
+  // formato original (imagen, vídeo…) a propósito — el punto de reciclar es
+  // justo cambiarlo, y copiarlo habría hecho falta adivinar cuál conservar.
+  useEffect(() => {
+    if (!reuseFromId) return;
+
+    void (async () => {
+      const res = await fetch(`/api/posts/${reuseFromId}`);
+      const json = await res.json();
+      if (!res.ok) return;
+
+      const text = json.caption ?? json.brief ?? "";
+      if (text) {
+        setBrief(text);
+        setReusingFrom({ id: reuseFromId, text });
+      }
+    })();
+  }, [reuseFromId]);
 
   useEffect(() => {
     if (connected.names.length > 0) setPlatforms(connected.names);
@@ -167,6 +203,14 @@ export default function ComposerPage() {
         <h1>Nuevo post</h1>
         <p>Describe la idea y elige dónde publicarla.</p>
       </header>
+
+      {reusingFrom && (
+        <p className="hint" style={{ marginTop: 0 }}>
+          Reutilizando el texto de{" "}
+          <a href={`/dashboard/posts/${reusingFrom.id}`}>un post que ya funcionó</a>. Cámbialo
+          y elige un formato distinto abajo — es un post nuevo, el original no se toca.
+        </p>
+      )}
 
       <form onSubmit={submit}>
         <div className="card">
