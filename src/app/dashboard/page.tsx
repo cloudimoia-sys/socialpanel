@@ -1,15 +1,19 @@
 import { redirect } from "next/navigation";
 import { spentThisMonthCents } from "@/domain/usage";
+import { IMPRESSIONS_LABEL } from "@/domain/metric-labels";
 import { AppError } from "@/lib/logger";
 import { adminClient } from "@/lib/supabase";
 import { currentTenant } from "@/lib/tenant";
-import { IconCalendar, IconInbox, IconPlus, IconShare } from "@/app/icons";
+import { credentialFor, publishProvider } from "@/providers/registry";
+import type { PlatformMetrics } from "@/providers/types";
+import { IconCalendar, IconInbox, IconPlus, IconShare, IconSparkle, IconTrophy } from "@/app/icons";
 import { PlatformIcon, platformLabel } from "@/app/platform-icons";
 import { AreaChart } from "@/app/dashboard/chart";
 
 export const dynamic = "force-dynamic";
 
 const euros = (cents: number) => `${(cents / 100).toFixed(2)} €`;
+const num = (n: number) => Math.round(n).toLocaleString("es-ES");
 
 const STATUS: Record<string, { label: string; className: string }> = {
   draft: { label: "borrador", className: "badge" },
@@ -58,9 +62,13 @@ export default async function DashboardPage() {
   const now = new Date();
   const since60 = new Date(now.getTime() - 60 * 86400000);
 
-  const [{ data: brand }, { data: accounts }, { data: recent }, { data: last60 }, spent] =
+  const [{ data: brand }, { data: accounts }, { data: recent }, { data: last60 }, { data: winners }, spent] =
     await Promise.all([
-      db.from("brand_profiles").select("business_name").eq("tenant_id", tenant.tenantId).maybeSingle(),
+      db
+        .from("brand_profiles")
+        .select("business_name, primary_platform")
+        .eq("tenant_id", tenant.tenantId)
+        .maybeSingle(),
       db.from("social_accounts").select("platform, handle, status").eq("tenant_id", tenant.tenantId),
       db
         .from("posts")
@@ -78,8 +86,45 @@ export default async function DashboardPage() {
         .eq("tenant_id", tenant.tenantId)
         .is("deleted_at", null)
         .gte("created_at", since60.toISOString()),
+      db
+        .from("posts")
+        .select("id, caption, brief, scheduled_platforms, created_at")
+        .eq("tenant_id", tenant.tenantId)
+        .is("deleted_at", null)
+        .eq("is_winner", true)
+        .order("created_at", { ascending: false })
+        .limit(5),
       spentThisMonthCents(tenant.tenantId),
     ]);
+
+  // Métrica real de UNA sola red (la que el tenant eligió como referencia),
+  // nunca sumada ni promediada entre redes: cada una mide "alcance" de forma
+  // distinta (alcance real, reproducciones, impresiones…), así que un único
+  // número combinado no significaría nada — la misma razón por la que
+  // Métricas traduce cada campo por red en vez de por nombre de campo.
+  let primaryMetrics: PlatformMetrics | null = null;
+  const primaryConnected = brand?.primary_platform
+    ? (accounts ?? []).some((a) => a.platform === brand.primary_platform && a.status === "active")
+    : false;
+
+  if (brand?.primary_platform && primaryConnected) {
+    try {
+      const cred = await credentialFor(tenant.tenantId, "upload_post");
+      const [m] = await publishProvider().accountMetrics(tenant.tenantId, [brand.primary_platform], cred);
+      if (m && !m.unavailable) primaryMetrics = m;
+    } catch {
+      // Sin credencial o sin respuesta de Upload-Post: el KPI se omite en vez
+      // de tumbar el resto del Panel por un proveedor externo caído.
+      primaryMetrics = null;
+    }
+  }
+
+  const engagementPct =
+    primaryMetrics && primaryMetrics.impressions && primaryMetrics.impressions > 0
+      ? ((primaryMetrics.likes ?? 0) + (primaryMetrics.comments ?? 0) + (primaryMetrics.shares ?? 0)) /
+        primaryMetrics.impressions *
+        100
+      : null;
 
   const { data: upcoming } = await db
     .from("posts")
@@ -123,6 +168,41 @@ export default async function DashboardPage() {
 
   const scheduledCount = upcoming?.length ?? 0;
 
+  // Recomendaciones: reglas sobre datos reales que ya se han cargado arriba,
+  // no una llamada a un modelo. Cada una se calcula de un dato concreto y
+  // dice de dónde sale, para que no se lean como una caja negra.
+  const recommendations: string[] = [];
+
+  if (winners && winners.length > 0) {
+    const w = winners[0]!;
+    recommendations.push(
+      `"${(w.caption ?? w.brief ?? "Ese post").slice(0, 60)}" está marcado como ganador — reutilízalo en otro formato desde Contenido.`,
+    );
+  }
+
+  if (prev30Count > 0 && last30Count < prev30Count * 0.7) {
+    const drop = Math.round((1 - last30Count / prev30Count) * 100);
+    recommendations.push(
+      `Publicaste ${drop}% menos que el mes anterior (${last30Count} frente a ${prev30Count}). Configura huecos fijos en Cola para no depender de acordarte.`,
+    );
+  }
+
+  const activePlatforms = new Set((accounts ?? []).filter((a) => a.status === "active").map((a) => a.platform));
+  const usedPlatforms = new Set<string>();
+  for (const p of upcoming ?? []) for (const plat of p.scheduled_platforms) usedPlatforms.add(plat);
+  const unusedPlatforms = [...activePlatforms].filter((p) => !usedPlatforms.has(p));
+  if (unusedPlatforms.length > 0 && activePlatforms.size > 1) {
+    recommendations.push(
+      `${unusedPlatforms.map(platformLabel).join(", ")} está conectada pero no aparece en lo programado — diversifica el alcance repartiendo entre tus redes.`,
+    );
+  }
+
+  if (tight) {
+    recommendations.push(
+      `Vas por el ${Math.round(pct)}% del presupuesto de este mes (${euros(spent)}). Revisa el consumo en Suscripción antes de seguir generando.`,
+    );
+  }
+
   return (
     <main>
       <header className="page-head">
@@ -162,18 +242,29 @@ export default async function DashboardPage() {
 
         <div className="kpi">
           <div className="kpi-head" />
-          <div className="value">{accounts?.length ?? 0}</div>
-          <div className="label">Redes conectadas</div>
+          <div className="value">{primaryMetrics?.impressions != null ? num(primaryMetrics.impressions) : "—"}</div>
+          <div className="label">
+            {brand?.primary_platform
+              ? `${IMPRESSIONS_LABEL[brand.primary_platform] ?? "Alcance"} · ${platformLabel(brand.primary_platform)} · 30 días`
+              : "Alcance · 30 días"}
+          </div>
         </div>
 
         <div className="kpi">
-          <div className="kpi-head">
-            {tight && <span className="delta delta-down">{Math.round(pct)}%</span>}
+          <div className="kpi-head" />
+          <div className="value">{engagementPct != null ? `${engagementPct.toFixed(1)}%` : "—"}</div>
+          <div className="label">
+            {brand?.primary_platform ? `Engagement · ${platformLabel(brand.primary_platform)}` : "Engagement medio"}
           </div>
-          <div className="value">{euros(spent)}</div>
-          <div className="label">Consumo del mes</div>
         </div>
       </div>
+
+      {!brand?.primary_platform && (accounts?.length ?? 0) > 0 && (
+        <p className="hint" style={{ marginTop: 0 }}>
+          Elige una red principal en <a href="/dashboard/brand">Empresa</a> para ver alcance y
+          engagement reales aquí.
+        </p>
+      )}
 
       <section className="card">
         <h2 className="card-title">Publicaciones creadas · últimos 30 días</h2>
@@ -260,8 +351,78 @@ export default async function DashboardPage() {
               </a>
             </div>
           )}
+
+          <p
+            className="muted"
+            style={{
+              margin: "var(--s3) 0 0",
+              paddingTop: "var(--s3)",
+              borderTop: "1px solid var(--border)",
+              fontSize: "0.8125rem",
+            }}
+          >
+            Consumo del mes: <strong className={tight ? "delta-down" : undefined}>{euros(spent)}</strong>
+            {tight && ` · ${Math.round(pct)}% del presupuesto`}
+          </p>
         </section>
       </div>
+
+      {(winners && winners.length > 0) || recommendations.length > 0 ? (
+        <div className="grid-2">
+          <section className="card">
+            <div className="card-head">
+              <h2 className="card-title">Mejores contenidos</h2>
+              <IconTrophy className="muted" />
+            </div>
+
+            {winners && winners.length > 0 ? (
+              <ul className="list">
+                {winners.map((w) => (
+                  <li key={w.id}>
+                    <span style={{ display: "flex", gap: ".3rem" }}>
+                      {w.scheduled_platforms.slice(0, 3).map((platform) => (
+                        <PlatformIcon key={platform} platform={platform} size={16} />
+                      ))}
+                    </span>
+                    <a href={`/dashboard/posts/${w.id}`} className="truncate" style={{ flex: 1 }}>
+                      {(w.caption ?? w.brief ?? "Sin texto todavía").slice(0, 60)}
+                    </a>
+                    <a href={`/dashboard/new?from=${w.id}`} className="btn btn-ghost btn-sm">
+                      Reutilizar
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="hint" style={{ marginBottom: 0 }}>
+                Marca algún post como ganador en <a href="/dashboard/content">Contenido</a> para
+                verlo aquí.
+              </p>
+            )}
+          </section>
+
+          <section className="card">
+            <div className="card-head">
+              <h2 className="card-title">Recomendaciones</h2>
+              <IconSparkle className="muted" />
+            </div>
+
+            {recommendations.length > 0 ? (
+              <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
+                {recommendations.map((tip) => (
+                  <li key={tip} className="muted" style={{ fontSize: "0.8125rem", marginBottom: "var(--s2)" }}>
+                    {tip}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="hint" style={{ marginBottom: 0 }}>
+                Todo en orden por ahora — sin avisos que darte.
+              </p>
+            )}
+          </section>
+        </div>
+      ) : null}
 
       <section className="card">
         <div className="card-head">

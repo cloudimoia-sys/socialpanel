@@ -40,6 +40,7 @@ const bodySchema = z.object({
   // tendría forma de saber por qué su tipografía elegida nunca aparece.
   font_family: z.enum(fontIds).default("Poppins"),
   logo_asset_id: z.string().uuid().nullable().default(null),
+  primary_platform: z.string().max(40).nullable().default(null),
   // Consultas de búsqueda, no categorías: "implantes dentales nueva técnica"
   // da mejores resultados que "odontología".
   news_topics: z.array(z.string().min(2).max(120)).max(6).default([]),
@@ -115,6 +116,20 @@ export async function PUT(request: Request) {
       // fallaría con un mensaje claro, fallaría dentro del renderizador de
       // la próxima pieza que se generase.
       if (asset.kind !== "image") throw new AppError("El logo tiene que ser una imagen.", 400);
+    }
+
+    // Igual que con el logo: no se confía en el valor recibido, se comprueba
+    // contra las cuentas de verdad conectadas de este tenant. Sin esto,
+    // cualquier texto guardaría en primary_platform y el Panel intentaría
+    // pedir métricas de una red que no está conectada.
+    if (body.primary_platform) {
+      const { data: acc } = await db
+        .from("social_accounts")
+        .select("platform")
+        .eq("tenant_id", tenant.tenantId)
+        .eq("platform", body.primary_platform)
+        .maybeSingle();
+      if (!acc) throw new AppError("Esa red no está conectada.", 400);
     }
 
     const { error } = await db

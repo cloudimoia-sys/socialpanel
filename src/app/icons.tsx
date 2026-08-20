@@ -186,3 +186,10 @@ export const IconArrowLeft = (p: Props) => (
     <path d="M19 12H5M12 19l-7-7 7-7" />
   </svg>
 );
+
+export const IconSparkle = (p: Props) => (
+  <svg {...base} {...p}>
+    <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
+    <path d="M8 8l1.5 1.5M14.5 14.5 16 16M16 8l-1.5 1.5M9.5 14.5 8 16" />
+  </svg>
+);

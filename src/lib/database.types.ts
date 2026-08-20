@@ -175,6 +175,7 @@ export type BrandProfile = {
   text_color: string;
   font_family: string;
   logo_asset_id: string | null;
+  primary_platform: string | null;
   timezone: string;
   publish_hour: number;
   news_topics: string[];

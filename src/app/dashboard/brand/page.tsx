@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { FONT_FAMILIES } from "@/domain/fonts";
 import { browserClient } from "@/lib/supabase-browser";
+import { platformLabel } from "@/app/platform-icons";
 
 /**
  * El formulario que rellena la empresa una vez.
@@ -30,9 +31,11 @@ export default function BrandPage() {
     text_color: "#FFFFFF",
     font_family: "Poppins",
     logo_asset_id: null as string | null,
+    primary_platform: null as string | null,
   });
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [accounts, setAccounts] = useState<{ platform: string; handle: string }[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -45,9 +48,9 @@ export default function BrandPage() {
 
   useEffect(() => {
     void (async () => {
-      const res = await fetch("/api/brand");
-      const json = await res.json();
-      if (res.ok && json.brand) {
+      const [brandRes, accountsRes] = await Promise.all([fetch("/api/brand"), fetch("/api/accounts")]);
+      const json = await brandRes.json();
+      if (brandRes.ok && json.brand) {
         setForm({
           ...json.brand,
           keywords: (json.brand.keywords ?? []).join(", "),
@@ -57,6 +60,8 @@ export default function BrandPage() {
         setLogoUrl(json.logoUrl);
         setIsFirstTime(false);
       }
+      const accountsJson = await accountsRes.json();
+      if (accountsRes.ok) setAccounts(accountsJson.accounts ?? []);
       setLoaded(true);
     })();
   }, []);
@@ -287,6 +292,36 @@ export default function BrandPage() {
                     </option>
                   ))}
                 </optgroup>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="card">
+          <h2 className="card-title">Panel</h2>
+          <p className="hint" style={{ marginTop: 0, marginBottom: "var(--s4)" }}>
+            Cada red mide el alcance a su manera (reproducciones, impresiones, alcance
+            real…), así que mezclarlas en un solo número mentiría. Elige una red de
+            referencia y el Panel de inicio muestra su dato real, sin combinar.
+          </p>
+
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label htmlFor="primary_platform">Red principal</label>
+            <select
+              id="primary_platform"
+              value={form.primary_platform ?? ""}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, primary_platform: e.target.value || null }))
+              }
+              disabled={accounts.length === 0}
+            >
+              <option value="">
+                {accounts.length === 0 ? "Ninguna red conectada todavía" : "Sin elegir (no se muestra)"}
+              </option>
+              {accounts.map((a) => (
+                <option key={a.platform} value={a.platform}>
+                  {platformLabel(a.platform)} · {a.handle}
+                </option>
               ))}
             </select>
           </div>

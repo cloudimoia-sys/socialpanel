@@ -37,6 +37,28 @@ const PAD = { top: 18, right: 12, bottom: 26, left: 46 };
 const defaultFormat = (value: number) => Math.round(value).toLocaleString("es-ES");
 
 /**
+ * Catmull-Rom a Bézier cúbica: la misma polilínea, pero como curva suave.
+ * Nexo (la referencia visual) usa curvas; una polilínea de pocos puntos se ve
+ * angulosa y menos "de producto". Los valores no cambian, solo cómo se unen.
+ */
+function smoothPath(pts: { x: number; y: number }[]): string {
+  if (pts.length < 2) return "";
+  let d = `M${pts[0]!.x},${pts[0]!.y}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] ?? pts[i]!;
+    const p1 = pts[i]!;
+    const p2 = pts[i + 1]!;
+    const p3 = pts[i + 2] ?? p2;
+    const c1x = p1.x + (p2.x - p0.x) / 6;
+    const c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6;
+    const c2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C${c1x},${c1y} ${c2x},${c2y} ${p2.x},${p2.y}`;
+  }
+  return d;
+}
+
+/**
  * Redondea el techo del eje a una cifra "limpia" (10, 25, 500, 2.000…).
  *
  * Con el máximo real como techo, el pico toca el borde superior y la gráfica
@@ -99,7 +121,8 @@ export function AreaChart({ points, height = 260, format = defaultFormat, label 
   const x = (index: number) => PAD.left + (index / (points.length - 1)) * plotW;
   const y = (value: number) => PAD.top + plotH - (value / top) * plotH;
 
-  const line = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i)},${y(p.value)}`).join(" ");
+  const coords = points.map((p, i) => ({ x: x(i), y: y(p.value) }));
+  const line = smoothPath(coords);
   const area = `${line} L${x(points.length - 1)},${PAD.top + plotH} L${PAD.left},${PAD.top + plotH} Z`;
 
   const gridValues = [0, top / 2, top];
