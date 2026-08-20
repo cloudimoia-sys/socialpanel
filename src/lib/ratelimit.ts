@@ -56,6 +56,10 @@ export const LIMITS = {
   publish: { limit: 30, window: "1 h", ms: 3_600_000 },
   upload: { limit: 60, window: "1 h", ms: 3_600_000 },
   credentials: { limit: 5, window: "1 h", ms: 3_600_000 },
+  // No cuesta dinero de proveedor, pero renderizar un PDF sí consume CPU: un
+  // cubo propio para que generar informes en bucle no comparta límite con la
+  // generación de contenido, que es lo que de verdad protege el presupuesto.
+  report: { limit: 20, window: "1 h", ms: 3_600_000 },
 } as const;
 
 export async function enforceRateLimit(

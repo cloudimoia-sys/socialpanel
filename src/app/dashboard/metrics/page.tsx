@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { IconAlert, IconChart } from "@/app/icons";
 import { PlatformIcon, platformLabel } from "@/app/platform-icons";
 import { AreaChart } from "@/app/dashboard/chart";
+import { IMPRESSIONS_LABEL } from "@/domain/metric-labels";
 
 interface Metrics {
   platform: string;
@@ -22,28 +23,6 @@ interface Metrics {
 /** Una red que no expone una métrica no es una red con cero: se marca sin dato. */
 const fmt = (value: number | null) =>
   value === null ? "—" : Math.round(value).toLocaleString("es-ES");
-
-/**
- * La métrica principal, en castellano llano.
- *
- * La API devuelve la etiqueta de cada red en inglés y en su jerga ("Unique
- * Reach", "Video Views"), que no significa nada para quien lleva una peluquería.
- *
- * Se traduce por RED y no por nombre de campo porque el campo miente: TikTok y
- * X mandan los dos `impressions`, pero en TikTok son reproducciones de un vídeo
- * y en X veces que apareció en pantalla. Llamarlas igual sería más cómodo y
- * menos cierto.
- */
-const IMPRESSIONS_LABEL: Record<string, string> = {
-  instagram: "Personas alcanzadas",
-  facebook: "Personas alcanzadas",
-  linkedin: "Personas alcanzadas",
-  threads: "Personas alcanzadas",
-  tiktok: "Reproducciones",
-  youtube: "Reproducciones",
-  x: "Veces que se vio",
-  pinterest: "Veces que se vio",
-};
 
 /**
  * Tendencia de la métrica principal, dibujada a mano.

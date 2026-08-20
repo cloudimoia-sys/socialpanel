@@ -148,6 +148,13 @@ export const IconFolder = (p: Props) => (
   </svg>
 );
 
+export const IconDocument = (p: Props) => (
+  <svg {...base} {...p}>
+    <path d="M6 3h8l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />
+    <path d="M14 3v4h4M8 12h8M8 16h8M8 8h3" />
+  </svg>
+);
+
 export const IconList = (p: Props) => (
   <svg {...base} {...p}>
     <path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01" />

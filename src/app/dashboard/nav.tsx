@@ -6,6 +6,7 @@ import {
   IconCalendar,
   IconCard,
   IconChart,
+  IconDocument,
   IconFolder,
   IconHome,
   IconInbox,
@@ -41,7 +42,10 @@ const GROUPS = [
   },
   {
     label: "Inteligencia",
-    links: [{ href: "/dashboard/metrics", label: "Métricas", Icon: IconChart }],
+    links: [
+      { href: "/dashboard/metrics", label: "Métricas", Icon: IconChart },
+      { href: "/dashboard/reports", label: "Informes", Icon: IconDocument },
+    ],
   },
   {
     label: "Cuenta",
