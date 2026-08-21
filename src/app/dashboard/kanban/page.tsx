@@ -54,7 +54,7 @@ export default function KanbanPage() {
   const byStatus = (status: string) => (posts ?? []).filter((p) => p.status === status);
 
   return (
-    <main>
+    <main className="main-wide">
       <header className="page-head">
         <h1>Tablero</h1>
         <p>El estado real de cada publicación, de un vistazo.</p>

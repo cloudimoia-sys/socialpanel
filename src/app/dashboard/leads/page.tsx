@@ -118,7 +118,7 @@ export default function LeadsPage() {
   const byStatus = (status: Status) => (leads ?? []).filter((l) => l.status === status);
 
   return (
-    <main>
+    <main className="main-wide">
       <header className="page-head">
         <h1>Leads</h1>
         <p>Contactos con intención real de contratar, con estado, no mensajes perdidos en un hilo.</p>
