@@ -207,3 +207,9 @@ export const IconTarget = (p: Props) => (
     <circle cx="12" cy="12" r="0.5" fill="currentColor" />
   </svg>
 );
+
+export const IconFunnel = (p: Props) => (
+  <svg {...base} {...p}>
+    <path d="M4 4h16l-6 8v6l-4 2v-8L4 4Z" />
+  </svg>
+);

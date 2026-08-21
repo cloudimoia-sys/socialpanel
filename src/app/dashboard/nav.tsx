@@ -9,6 +9,7 @@ import {
   IconChat,
   IconDocument,
   IconFolder,
+  IconFunnel,
   IconHome,
   IconInbox,
   IconLayout,
@@ -50,6 +51,7 @@ const GROUPS = [
     links: [
       { href: "/dashboard/metrics", label: "Métricas", Icon: IconChart },
       { href: "/dashboard/competitors", label: "Competidores", Icon: IconTarget },
+      { href: "/dashboard/leads", label: "Leads", Icon: IconFunnel },
       { href: "/dashboard/reports", label: "Informes", Icon: IconDocument },
     ],
   },

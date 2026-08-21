@@ -20,6 +20,22 @@ export default function InboxPage() {
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState<string | null>(null);
+  const [leadCreated, setLeadCreated] = useState<Set<string>>(new Set());
+
+  async function createLead(c: Conversation) {
+    const res = await fetch("/api/leads", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: c.participantName,
+        platform: c.platform,
+        handle: c.recipientId,
+        message: c.lastMessage,
+        source: "inbox",
+      }),
+    });
+    if (res.ok) setLeadCreated((s) => new Set(s).add(c.id));
+  }
 
   useEffect(() => {
     void (async () => {
@@ -123,13 +139,22 @@ export default function InboxPage() {
                     </button>
                   </span>
                 ) : (
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => setOpen(c.id)}
-                  >
-                    Responder
-                  </button>
+                  <span style={{ display: "flex", gap: "var(--s2)" }}>
+                    {leadCreated.has(c.id) ? (
+                      <span className="badge badge-ok">lead creado</span>
+                    ) : (
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => createLead(c)}>
+                        Crear lead
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setOpen(c.id)}
+                    >
+                      Responder
+                    </button>
+                  </span>
                 )}
               </li>
             ))}

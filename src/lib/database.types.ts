@@ -159,6 +159,24 @@ export type UsageEvent = {
   created_at: Timestamptz;
 };
 
+export type LeadStatus = "nuevo" | "contactado" | "presupuesto" | "ganado" | "perdido";
+
+export type Lead = {
+  id: string;
+  tenant_id: string;
+  name: string | null;
+  platform: string | null;
+  handle: string | null;
+  message: string | null;
+  company: string | null;
+  status: LeadStatus;
+  value_cents: number | null;
+  source: "manual" | "inbox";
+  created_by: string | null;
+  created_at: Timestamptz;
+  updated_at: Timestamptz;
+};
+
 export type Competitor = {
   id: string;
   tenant_id: string;
@@ -301,6 +319,7 @@ export type Database = {
         Omit<MetricSnapshot, "id" | "created_at"> & Partial<MetricSnapshot>
       >;
       competitors: Table<Competitor, Pick<Competitor, "tenant_id" | "platform" | "handle"> & Partial<Competitor>>;
+      leads: Table<Lead, Pick<Lead, "tenant_id"> & Partial<Lead>>;
       competitor_snapshots: Table<
         CompetitorSnapshot,
         Pick<CompetitorSnapshot, "competitor_id" | "tenant_id"> & Partial<CompetitorSnapshot>

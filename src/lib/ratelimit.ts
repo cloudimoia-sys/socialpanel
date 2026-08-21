@@ -63,6 +63,9 @@ export const LIMITS = {
   // La consulta a la API de YouTube es gratis pero tiene cuota diaria propia:
   // un cubo aparte evita que alguien la agote a base de pulsar "Actualizar".
   competitor: { limit: 30, window: "1 h", ms: 3_600_000 },
+  // No cuesta dinero de proveedor, pero un bucle escribiendo leads basura
+  // ensuciaría el pipeline de ventas real de un cliente.
+  lead: { limit: 60, window: "1 h", ms: 3_600_000 },
 } as const;
 
 export async function enforceRateLimit(
