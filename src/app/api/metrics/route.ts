@@ -1,3 +1,4 @@
+import { pastSnapshot, pctDelta } from "@/domain/metric-history";
 import { run } from "@/lib/route";
 import { requireCurrentTenant } from "@/lib/tenant";
 import { credentialFor, publishProvider } from "@/providers/registry";
@@ -25,8 +26,22 @@ export async function GET() {
 
     const metrics = await provider.accountMetrics(tenant.tenantId, platforms, cred);
 
+    // Variación real contra el histórico propio (metric_snapshots), no un
+    // recálculo con datos de la propia llamada: la API de Upload-Post solo
+    // da el total de hoy, así que "hace 30 días" solo existe si el cron
+    // snapshot-metrics ya dejó un punto guardado ese día.
+    const withDelta = await Promise.all(
+      metrics.map(async (m) => {
+        if (m.unavailable || m.impressions === null) {
+          return { ...m, impressionsDeltaPct: null as number | null };
+        }
+        const past = await pastSnapshot(tenant.tenantId, m.platform, 30);
+        return { ...m, impressionsDeltaPct: past ? pctDelta(m.impressions, past.impressions) : null };
+      }),
+    );
+
     return {
-      metrics: metrics.map((m) => ({
+      metrics: withDelta.map((m) => ({
         ...m,
         handle: accounts.find((a) => a.platform === m.platform)?.handle ?? "",
       })),

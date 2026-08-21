@@ -159,6 +159,19 @@ export type UsageEvent = {
   created_at: Timestamptz;
 };
 
+export type MetricSnapshot = {
+  id: string;
+  tenant_id: string;
+  platform: string;
+  snapshot_date: string;
+  followers: number | null;
+  impressions: number | null;
+  likes: number | null;
+  comments: number | null;
+  shares: number | null;
+  created_at: Timestamptz;
+};
+
 export type BrandProfile = {
   tenant_id: string;
   business_name: string;
@@ -260,6 +273,10 @@ export type Database = {
           Partial<PostTarget>
       >;
       usage_events: Table<UsageEvent, Omit<UsageEvent, "id" | "created_at"> & Partial<UsageEvent>>;
+      metric_snapshots: Table<
+        MetricSnapshot,
+        Omit<MetricSnapshot, "id" | "created_at"> & Partial<MetricSnapshot>
+      >;
       audit_log: Table<AuditLog, Pick<AuditLog, "action"> & Partial<AuditLog>>;
       processed_webhooks: Table<ProcessedWebhook, Pick<ProcessedWebhook, "id"> & Partial<ProcessedWebhook>>;
       brand_profiles: Table<

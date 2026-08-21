@@ -19,11 +19,24 @@ interface Metrics {
   timeseries: { date: string; value: number }[];
   measuring?: string;
   unavailable?: string;
+  impressionsDeltaPct: number | null;
 }
 
 /** Una red que no expone una métrica no es una red con cero: se marca sin dato. */
 const fmt = (value: number | null) =>
   value === null ? "—" : Math.round(value).toLocaleString("es-ES");
+
+/** Contra el histórico propio de hace 30 días. Sin snapshot en ese rango, no se enseña nada. */
+function Delta({ pct }: { pct: number | null }) {
+  if (pct === null) return null;
+  const rounded = Math.round(pct);
+  if (rounded === 0) return <span className="delta delta-flat">— 0%</span>;
+  return (
+    <span className={rounded > 0 ? "delta delta-up" : "delta delta-down"}>
+      {rounded > 0 ? "▲" : "▼"} {Math.abs(rounded)}%
+    </span>
+  );
+}
 
 /**
  * Tendencia de la métrica principal, dibujada a mano.
@@ -129,7 +142,9 @@ export default function MetricsPage() {
               <>
                 <div className="metrics">
                   <div>
-                    <span className="stat">{fmt(m.impressions)}</span>
+                    <span className="stat">
+                      {fmt(m.impressions)} <Delta pct={m.impressionsDeltaPct} />
+                    </span>
                     {/* El nombre original queda al pasar el ratón: quien conoce
                         la jerga de la red puede comprobar que cuadra con lo que
                         ve en la app oficial. */}

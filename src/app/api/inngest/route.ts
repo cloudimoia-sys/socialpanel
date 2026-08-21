@@ -3,6 +3,7 @@ import { inngest } from "@/inngest/client";
 import { generateContent } from "@/inngest/functions/generate-content";
 import { publishDuePosts } from "@/inngest/functions/publish-due";
 import { publishPost } from "@/inngest/functions/publish-post";
+import { snapshotMetrics } from "@/inngest/functions/snapshot-metrics";
 
 /**
  * Endpoint de la cola.
@@ -13,5 +14,5 @@ import { publishPost } from "@/inngest/functions/publish-post";
  */
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [generateContent, publishPost, publishDuePosts],
+  functions: [generateContent, publishPost, publishDuePosts, snapshotMetrics],
 });

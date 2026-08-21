@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { spentThisMonthCents } from "@/domain/usage";
 import { IMPRESSIONS_LABEL } from "@/domain/metric-labels";
+import { engagementRate, pastSnapshot, pctDelta } from "@/domain/metric-history";
 import { AppError } from "@/lib/logger";
 import { adminClient } from "@/lib/supabase";
 import { currentTenant } from "@/lib/tenant";
@@ -38,6 +39,18 @@ function Delta({ current, previous }: { current: number; previous: number }) {
   return (
     <span className={pct > 0 ? "delta delta-up" : "delta delta-down"}>
       {pct > 0 ? "▲" : "▼"} {Math.abs(pct)}%
+    </span>
+  );
+}
+
+/** Como <Delta>, pero para un porcentaje ya calculado (alcance/engagement contra el histórico). */
+function PctDelta({ pct }: { pct: number | null }) {
+  if (pct === null) return null;
+  const rounded = Math.round(pct);
+  if (rounded === 0) return <span className="delta delta-flat">— 0%</span>;
+  return (
+    <span className={rounded > 0 ? "delta delta-up" : "delta delta-down"}>
+      {rounded > 0 ? "▲" : "▼"} {Math.abs(rounded)}%
     </span>
   );
 }
@@ -119,12 +132,24 @@ export default async function DashboardPage() {
     }
   }
 
-  const engagementPct =
-    primaryMetrics && primaryMetrics.impressions && primaryMetrics.impressions > 0
-      ? ((primaryMetrics.likes ?? 0) + (primaryMetrics.comments ?? 0) + (primaryMetrics.shares ?? 0)) /
-        primaryMetrics.impressions *
-        100
-      : null;
+  const engagementPct = primaryMetrics
+    ? engagementRate(primaryMetrics.likes, primaryMetrics.comments, primaryMetrics.shares, primaryMetrics.impressions)
+    : null;
+
+  // Contra el propio histórico (metric_snapshots, un punto/día por el cron
+  // snapshot-metrics), no contra la API en vivo: Upload-Post solo da el total
+  // de HOY, nunca el de hace 30 días. Sin snapshot en rango, `pctDelta`
+  // devuelve null y el KPI se enseña sin flecha — no una caída inventada.
+  let impressionsDeltaPct: number | null = null;
+  let engagementDeltaPct: number | null = null;
+  if (primaryMetrics && brand?.primary_platform) {
+    const past = await pastSnapshot(tenant.tenantId, brand.primary_platform, 30);
+    if (past) {
+      impressionsDeltaPct = pctDelta(primaryMetrics.impressions, past.impressions);
+      const pastEngagement = engagementRate(past.likes, past.comments, past.shares, past.impressions);
+      engagementDeltaPct = pctDelta(engagementPct, pastEngagement);
+    }
+  }
 
   const { data: upcoming } = await db
     .from("posts")
@@ -241,7 +266,9 @@ export default async function DashboardPage() {
         </div>
 
         <div className="kpi">
-          <div className="kpi-head" />
+          <div className="kpi-head">
+            <PctDelta pct={impressionsDeltaPct} />
+          </div>
           <div className="value">{primaryMetrics?.impressions != null ? num(primaryMetrics.impressions) : "—"}</div>
           <div className="label">
             {brand?.primary_platform
@@ -251,7 +278,9 @@ export default async function DashboardPage() {
         </div>
 
         <div className="kpi">
-          <div className="kpi-head" />
+          <div className="kpi-head">
+            <PctDelta pct={engagementDeltaPct} />
+          </div>
           <div className="value">{engagementPct != null ? `${engagementPct.toFixed(1)}%` : "—"}</div>
           <div className="label">
             {brand?.primary_platform ? `Engagement · ${platformLabel(brand.primary_platform)}` : "Engagement medio"}
