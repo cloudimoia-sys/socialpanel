@@ -213,3 +213,10 @@ export const IconFunnel = (p: Props) => (
     <path d="M4 4h16l-6 8v6l-4 2v-8L4 4Z" />
   </svg>
 );
+
+export const IconCoin = (p: Props) => (
+  <svg {...base} {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v10M9.5 9.3c0-1.3 1.1-2 2.5-2s2.5.8 2.5 2c0 2.6-5 1.4-5 4 0 1.2 1.1 2 2.5 2s2.5-.7 2.5-2" />
+  </svg>
+);
