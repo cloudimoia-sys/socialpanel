@@ -96,10 +96,15 @@ export interface Plan {
 }
 
 /**
- * Los bloques `seo` y `email` están definidos como tipos pero todavía no
- * aparecen en ningún plan: esos módulos no existen aún en la aplicación.
- * Añadirlos aquí antes de construirlos haría que la pantalla de suscripción
- * prometiera funciones que no se pueden usar.
+ * El bloque `email` está definido como tipo pero no aparece en ningún plan:
+ * ese módulo no existe aún, y anunciarlo aquí sería vender lo que no se puede
+ * usar.
+ *
+ * `seo` sí está en los tres planes, incluido el gratuito, por un motivo
+ * concreto: leer Search Console es una API oficial y GRATIS, así que no hay
+ * coste que recuperar. Se cobra lo que cuesta dinero. `trackedKeywords` va a
+ * 0 en todos porque el rastreo de posiciones —lo único de SEO con coste
+ * recurrente— todavía no está construido.
  */
 export const PLANS: Record<PlanId, Plan> = {
   trial: {
@@ -109,6 +114,7 @@ export const PLANS: Record<PlanId, Plan> = {
     // 2 € cubre de sobra una prueba real y acota el abuso de altas masivas.
     budgetCents: 200,
     social: { posts: 5, images: 5, videoSeconds: 0, networks: 3 },
+    seo: { sites: 1, trackedKeywords: 0, auditsPerMonth: 1 },
   },
   starter: {
     id: "starter",
@@ -116,6 +122,7 @@ export const PLANS: Record<PlanId, Plan> = {
     priceCents: 2900,
     budgetCents: 1200,
     social: { posts: 30, images: 30, videoSeconds: 60, networks: 5 },
+    seo: { sites: 1, trackedKeywords: 0, auditsPerMonth: 4 },
   },
   pro: {
     id: "pro",
@@ -123,6 +130,7 @@ export const PLANS: Record<PlanId, Plan> = {
     priceCents: 7900,
     budgetCents: 4000,
     social: { posts: 120, images: 120, videoSeconds: 300, networks: 9 },
+    seo: { sites: 5, trackedKeywords: 0, auditsPerMonth: 30 },
   },
 };
 

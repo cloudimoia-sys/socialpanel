@@ -208,6 +208,13 @@ export const IconTarget = (p: Props) => (
   </svg>
 );
 
+export const IconSearch = (p: Props) => (
+  <svg {...base} {...p}>
+    <circle cx="11" cy="11" r="7" />
+    <path d="M20 20l-3.5-3.5" />
+  </svg>
+);
+
 export const IconChevron = (p: Props) => (
   <svg {...base} {...p}>
     <path d="M6 9l6 6 6-6" />

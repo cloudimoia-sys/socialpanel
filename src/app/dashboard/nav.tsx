@@ -20,6 +20,7 @@ import {
   IconList,
   IconMail,
   IconPlus,
+  IconSearch,
   IconShare,
   IconSparkle,
   IconTarget,
@@ -76,6 +77,11 @@ const GROUPS: NavGroup[] = [
       // sociales" ya se entiende, y el nombre largo partía en dos líneas.
       { href: "/dashboard/accounts", label: "Cuentas", Icon: IconShare },
     ],
+  },
+  {
+    label: "SEO",
+    module: "seo",
+    links: [{ href: "/dashboard/seo", label: "Búsquedas", Icon: IconSearch }],
   },
   {
     // Transversal a propósito: un lead puede venir de redes, de SEO o de una

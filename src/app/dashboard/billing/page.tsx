@@ -206,7 +206,15 @@ export default function BillingPage() {
                       todavía no existe es vender lo que no se puede usar. */}
                   {p.seo && (
                     <li>
-                      <IconCheck className="" /> SEO: {p.seo.trackedKeywords} keywords rastreadas
+                      <IconCheck className="" /> SEO: {p.seo.sites}{" "}
+                      {p.seo.sites === 1 ? "web" : "webs"} en Search Console
+                    </li>
+                  )}
+                  {/* Solo si de verdad incluye rastreo de posiciones: "0
+                      keywords rastreadas" no es una característica. */}
+                  {p.seo && p.seo.trackedKeywords > 0 && (
+                    <li>
+                      <IconCheck className="" /> {p.seo.trackedKeywords} keywords rastreadas
                     </li>
                   )}
                   {p.email && (

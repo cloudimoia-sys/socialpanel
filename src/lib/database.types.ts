@@ -51,7 +51,16 @@ export type Membership = {
 export type ProviderCredential = {
   id: string;
   tenant_id: string;
-  provider: "anthropic" | "gemini" | "fal" | "upload_post" | "cloudflare";
+  provider:
+    | "anthropic"
+    | "gemini"
+    | "fal"
+    | "upload_post"
+    | "cloudflare"
+    // No es una API key sino el refresh token de OAuth de Google, pero recibe
+    // el mismo trato (cifrado, sin SELECT desde el cliente) porque es
+    // exactamente igual de sensible.
+    | "google_search_console";
   ciphertext: string;
   hint: string;
   created_at: Timestamptz;
@@ -168,6 +177,14 @@ export type TeamInvitation = {
   created_at: Timestamptz;
   accepted_at: Timestamptz | null;
   accepted_by: string | null;
+};
+
+export type SeoSite = {
+  id: string;
+  tenant_id: string;
+  /** Tal cual lo identifica Search Console: "sc-domain:x.com" o "https://x.com/". */
+  site_url: string;
+  created_at: Timestamptz;
 };
 
 export type LeadStatus = "nuevo" | "contactado" | "presupuesto" | "ganado" | "perdido";
@@ -331,6 +348,7 @@ export type Database = {
       >;
       competitors: Table<Competitor, Pick<Competitor, "tenant_id" | "platform" | "handle"> & Partial<Competitor>>;
       leads: Table<Lead, Pick<Lead, "tenant_id"> & Partial<Lead>>;
+      seo_sites: Table<SeoSite, Pick<SeoSite, "tenant_id" | "site_url"> & Partial<SeoSite>>;
       team_invitations: Table<
         TeamInvitation,
         Pick<TeamInvitation, "tenant_id" | "email"> & Partial<TeamInvitation>

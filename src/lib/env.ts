@@ -34,6 +34,21 @@ const serverSchema = z.object({
   // competidores en YouTube sigue funcionando en modo manual, igual que
   // TikTok/Instagram/LinkedIn.
   YOUTUBE_API_KEY: z.string().optional(),
+
+  /**
+   * Cliente OAuth de Google, para que el cliente conecte su Search Console.
+   *
+   * Puede ser el MISMO cliente que usa Supabase para el login con Google —
+   * un cliente admite varias URIs de redirección y los permisos se piden por
+   * autorización, no por cliente. Pero el flujo es aparte a propósito: colgar
+   * Search Console del login pediría ese permiso a todo el mundo al entrar, y
+   * dejaría sin opción a quien entra con contraseña en vez de con Google.
+   *
+   * Sin estas dos variables el módulo SEO no se puede conectar y lo dice; no
+   * rompe nada más.
+   */
+  GOOGLE_OAUTH_CLIENT_ID: z.string().optional(),
+  GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 
