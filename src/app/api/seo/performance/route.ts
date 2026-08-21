@@ -13,7 +13,13 @@ import {
   type SearchType,
 } from "@/providers/seo/search-console";
 
-const PERIOD_DAYS = 28;
+/**
+ * Periodos elegibles. 28 días es lo estándar, pero una web con poco tráfico
+ * puede salir a cero ahí y tener datos de sobra en un año — sin poder mirar
+ * más atrás, no hay forma de distinguir "no hay datos" de "algo va mal".
+ * Search Console guarda 16 meses, así que 365 entra de sobra.
+ */
+const PERIODS = [28, 90, 365] as const;
 
 /**
  * Rendimiento en Google de una de las webs del cliente.
@@ -30,6 +36,11 @@ export async function GET(request: Request) {
       .enum(["web", "image", "video", "discover", "googleNews"])
       .default("web")
       .parse(url.searchParams.get("type") ?? "web") as SearchType;
+    const days = z
+      .coerce.number()
+      .refine((d): d is (typeof PERIODS)[number] => PERIODS.includes(d as (typeof PERIODS)[number]))
+      .catch(28)
+      .parse(url.searchParams.get("days") ?? 28);
 
     const tenant = await requireCurrentTenant();
     await assertModule(tenant.tenantId, "seo");
@@ -49,7 +60,7 @@ export async function GET(request: Request) {
 
     const token = await requireSearchConsoleToken(tenant.tenantId);
     const site_url = site.site_url;
-    const base = { type, days: PERIOD_DAYS };
+    const base = { type, days };
 
     /**
      * Un desglose que falla no debe tumbar la pantalla entera.
@@ -76,10 +87,12 @@ export async function GET(request: Request) {
     const [totals, previous, daily, queries, pages, devices, countries] = await Promise.all([
       // Los totales sí son obligatorios: sin ellos no hay pantalla que pintar.
       performance(token, site_url, base),
-      // Mismo periodo, 28 días antes: es lo que permite decir "sube un 12%"
+      // El mismo periodo justo antes: es lo que permite decir "sube un 12%"
       // en vez de enseñar un número suelto sin referencia.
-      performance(token, site_url, { ...base, offsetDays: PERIOD_DAYS }),
-      safeRows({ ...base, dimension: "date", limit: 90 }),
+      performance(token, site_url, { ...base, offsetDays: days }),
+      // Una fila por día del periodo, con margen: con un tope fijo de 90, un
+      // rango de un año perdería tres cuartas partes de la gráfica.
+      safeRows({ ...base, dimension: "date", limit: days + 5 }),
       wantsQueries ? safeRows({ ...base, dimension: "query", limit: 10 }) : Promise.resolve([]),
       safeRows({ ...base, dimension: "page", limit: 10 }),
       safeRows({ ...base, dimension: "device", limit: 5 }),
@@ -89,6 +102,7 @@ export async function GET(request: Request) {
     return {
       siteUrl: site_url,
       type,
+      days,
       totals: totals.totals,
       previous: previous.totals,
       // Google devuelve las fechas sin orden garantizado; la gráfica necesita

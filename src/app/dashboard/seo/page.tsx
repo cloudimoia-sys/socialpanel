@@ -28,6 +28,7 @@ interface Totals {
 interface Performance {
   siteUrl: string;
   type: string;
+  days: number;
   totals: Totals;
   previous: Totals;
   daily: Row[];
@@ -43,6 +44,12 @@ const SEARCH_TYPES = [
   { id: "video", label: "Vídeo" },
   { id: "discover", label: "Discover" },
   { id: "googleNews", label: "Noticias" },
+];
+
+const PERIODS = [
+  { days: 28, label: "28 días" },
+  { days: 90, label: "3 meses" },
+  { days: 365, label: "12 meses" },
 ];
 
 const num = (n: number) => Math.round(n).toLocaleString("es-ES");
@@ -157,6 +164,7 @@ function SeoContent() {
   const [available, setAvailable] = useState<{ siteUrl: string }[]>([]);
   const [active, setActive] = useState<string | null>(null);
   const [searchType, setSearchType] = useState("web");
+  const [days, setDays] = useState(28);
   const [perf, setPerf] = useState<Performance | null>(null);
   const [loadingPerf, setLoadingPerf] = useState(false);
   const [error, setError] = useState(params.get("error") ?? "");
@@ -188,7 +196,9 @@ function SeoContent() {
     setLoadingPerf(true);
     setError("");
     void (async () => {
-      const res = await fetch(`/api/seo/performance?siteId=${active}&type=${searchType}`);
+      const res = await fetch(
+        `/api/seo/performance?siteId=${active}&type=${searchType}&days=${days}`,
+      );
       const json = await res.json();
       setLoadingPerf(false);
       if (!res.ok) {
@@ -198,7 +208,7 @@ function SeoContent() {
       }
       setPerf(json);
     })();
-  }, [active, searchType]);
+  }, [active, searchType, days]);
 
   async function addSite(siteUrl: string) {
     setError("");
@@ -331,18 +341,41 @@ function SeoContent() {
           </section>
 
           {sites.length > 0 && (
-            <div className="chips" style={{ marginBottom: "var(--s4)" }}>
-              {SEARCH_TYPES.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  className="chip"
-                  aria-pressed={searchType === t.id}
-                  onClick={() => setSearchType(t.id)}
-                >
-                  {t.label}
-                </button>
-              ))}
+            <div
+              style={{
+                display: "flex",
+                gap: "var(--s5)",
+                flexWrap: "wrap",
+                marginBottom: "var(--s4)",
+              }}
+            >
+              <div className="chips">
+                {SEARCH_TYPES.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    className="chip"
+                    aria-pressed={searchType === t.id}
+                    onClick={() => setSearchType(t.id)}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="chips">
+                {PERIODS.map((p) => (
+                  <button
+                    key={p.days}
+                    type="button"
+                    className="chip"
+                    aria-pressed={days === p.days}
+                    onClick={() => setDays(p.days)}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -352,13 +385,37 @@ function SeoContent() {
             </section>
           ) : perf ? (
             <>
+              {/* Cero impresiones significa que Google no llegó a ENSEÑAR la
+                  web ni una vez: no es un fallo de lectura, es el dato. Sin
+                  decirlo, cuatro ceros y tres tablas vacías se leen como que
+                  la aplicación no funciona. */}
+              {perf.totals.impressions === 0 && (
+                <section className="card" style={{ borderColor: "var(--border-strong)" }}>
+                  <h2 className="card-title">Sin datos en este periodo</h2>
+                  <p className="muted" style={{ marginBottom: "var(--s3)" }}>
+                    Google no ha mostrado{" "}
+                    <strong>{prettySite(perf.siteUrl)}</strong> en ningún resultado de{" "}
+                    {SEARCH_TYPES.find((t) => t.id === perf.type)?.label.toLowerCase() ?? "búsqueda"}{" "}
+                    en {PERIODS.find((p) => p.days === perf.days)?.label ?? "este periodo"}. La
+                    conexión funciona: esto es lo que hay.
+                  </p>
+                  <p className="hint" style={{ marginBottom: 0 }}>
+                    Prueba con un periodo más largo arriba, o con otro tipo de búsqueda. Si
+                    también sale vacío en 12 meses, es que la web todavía no aparece en Google —
+                    lo normal en un sitio nuevo o sin contenido indexado.
+                  </p>
+                </section>
+              )}
+
               <div className="kpis">
                 <div className="kpi">
                   <div className="kpi-head">
                     <Delta current={perf.totals.clicks} previous={perf.previous.clicks} />
                   </div>
                   <div className="value">{num(perf.totals.clicks)}</div>
-                  <div className="label">Clics · 28 días</div>
+                  <div className="label">
+                    Clics · {PERIODS.find((p) => p.days === perf.days)?.label ?? `${perf.days} días`}
+                  </div>
                 </div>
                 <div className="kpi">
                   <div className="kpi-head">
@@ -454,11 +511,11 @@ function SeoContent() {
               </div>
 
               <p className="hint">
-                Últimos 28 días, hasta hace tres, comparados con los 28 anteriores: Search
-                Console tarda un par de días en consolidar, y pedir hasta hoy devolvería los
-                últimos días a cero como si hubieras caído en picado. La posición media es la
-                del resultado en Google — cuanto más baja, mejor, y por eso su flecha va al
-                revés que las demás.
+                El periodo termina hace tres días, no hoy: Search Console tarda un par de días
+                en consolidar, y pedir hasta hoy devolvería los últimos días a cero como si
+                hubieras caído en picado. Cada cifra se compara con el mismo periodo justo
+                anterior. La posición media es la del resultado en Google — cuanto más baja,
+                mejor, y por eso su flecha va al revés que las demás.
               </p>
             </>
           ) : (
