@@ -180,21 +180,63 @@ export async function listSites(
 const isoDay = (d: Date) => d.toISOString().slice(0, 10);
 
 /**
+ * Dónde aparece el resultado. Google los cuenta por separado y no se suman:
+ * Discover sobre todo suele traer un volumen que nadie mira porque en la
+ * pantalla por defecto de Search Console no sale.
+ */
+export type SearchType = "web" | "image" | "video" | "discover" | "googleNews";
+
+export const SEARCH_TYPES: { id: SearchType; label: string }[] = [
+  { id: "web", label: "Web" },
+  { id: "image", label: "Imágenes" },
+  { id: "video", label: "Vídeo" },
+  { id: "discover", label: "Discover" },
+  { id: "googleNews", label: "Noticias" },
+];
+
+export type Dimension = "query" | "page" | "date" | "country" | "device";
+
+/**
+ * Discover y Google News no tienen consultas de búsqueda: nadie escribe nada,
+ * es un feed. Pedir la dimensión "query" ahí devuelve error de la API, así
+ * que hay que saberlo antes de preguntar.
+ */
+export function supportsDimension(type: SearchType, dimension: Dimension): boolean {
+  if (type === "discover" || type === "googleNews") return dimension !== "query";
+  return true;
+}
+
+/**
  * Datos de rendimiento de una web.
  *
- * `dimensions` vacío devuelve los totales del periodo; con "query", "page" o
- * "date" devuelve el desglose por esa dimensión.
+ * `dimension` vacía devuelve los totales del periodo; con una dimensión,
+ * el desglose por ella.
  *
  * Ojo con el desfase: Search Console tarda 2-3 días en consolidar. Por eso el
  * rango termina hace 3 días y no hoy — pedir hasta hoy devuelve los últimos
  * días a cero y parece una caída en picado.
+ *
+ * `offsetDays` desplaza la ventana hacia atrás para pedir el periodo anterior
+ * con el que comparar, sin duplicar la lógica de fechas.
  */
 export async function performance(
   refreshToken: string,
   siteUrl: string,
-  { days = 28, dimension, limit = 10 }: { days?: number; dimension?: "query" | "page" | "date"; limit?: number } = {},
+  {
+    days = 28,
+    dimension,
+    limit = 10,
+    type = "web",
+    offsetDays = 0,
+  }: {
+    days?: number;
+    dimension?: Dimension;
+    limit?: number;
+    type?: SearchType;
+    offsetDays?: number;
+  } = {},
 ): Promise<{ totals: SearchTotals; rows: SearchRow[] }> {
-  const end = new Date(Date.now() - 3 * 86_400_000);
+  const end = new Date(Date.now() - (3 + offsetDays) * 86_400_000);
   const start = new Date(end.getTime() - days * 86_400_000);
 
   const body = await call<{
@@ -206,6 +248,7 @@ export async function performance(
       endDate: isoDay(end),
       dimensions: dimension ? [dimension] : [],
       rowLimit: dimension ? limit : 1,
+      type,
     }),
   });
 

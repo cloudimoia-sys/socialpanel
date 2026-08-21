@@ -18,13 +18,32 @@ interface Row {
   position: number;
 }
 
+interface Totals {
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+}
+
 interface Performance {
   siteUrl: string;
-  totals: { clicks: number; impressions: number; ctr: number; position: number };
+  type: string;
+  totals: Totals;
+  previous: Totals;
   daily: Row[];
   queries: Row[];
   pages: Row[];
+  devices: Row[];
+  countries: Row[];
 }
+
+const SEARCH_TYPES = [
+  { id: "web", label: "Web" },
+  { id: "image", label: "Imágenes" },
+  { id: "video", label: "Vídeo" },
+  { id: "discover", label: "Discover" },
+  { id: "googleNews", label: "Noticias" },
+];
 
 const num = (n: number) => Math.round(n).toLocaleString("es-ES");
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
@@ -33,24 +52,81 @@ const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
 const prettySite = (url: string) =>
   url.startsWith("sc-domain:") ? url.slice("sc-domain:".length) : url.replace(/^https?:\/\//, "").replace(/\/$/, "");
 
-function RowsTable({ rows, label }: { rows: Row[]; label: string }) {
+const DEVICE_LABEL: Record<string, string> = {
+  DESKTOP: "Escritorio",
+  MOBILE: "Móvil",
+  TABLET: "Tablet",
+};
+
+/**
+ * Search Console devuelve el país en ISO-3166 de tres letras ("esp"), que
+ * `Intl.DisplayNames` no acepta — solo entiende el de dos. Se traducen los
+ * habituales y el resto se enseña en mayúsculas, que sigue siendo legible.
+ */
+const COUNTRY_ALPHA2: Record<string, string> = {
+  esp: "ES", mex: "MX", arg: "AR", col: "CO", chl: "CL", per: "PE", ven: "VE",
+  usa: "US", gbr: "GB", fra: "FR", deu: "DE", ita: "IT", prt: "PT", nld: "NL",
+  bel: "BE", che: "CH", irl: "IE", mar: "MA", bra: "BR", ecu: "EC", ury: "UY",
+  can: "CA", aus: "AU", pol: "PL", rou: "RO", swe: "SE", nor: "NO", dnk: "DK",
+};
+
+function countryName(code: string): string {
+  const alpha2 = COUNTRY_ALPHA2[code.toLowerCase()];
+  if (!alpha2) return code.toUpperCase();
+  try {
+    return new Intl.DisplayNames(["es"], { type: "region" }).of(alpha2) ?? alpha2;
+  } catch {
+    return alpha2;
+  }
+}
+
+/** Variación contra los 28 días anteriores. Sin base con la que comparar, no se enseña nada. */
+function Delta({ current, previous, lowerIsBetter = false }: { current: number; previous: number; lowerIsBetter?: boolean }) {
+  if (!previous) return null;
+  const change = ((current - previous) / previous) * 100;
+  const rounded = Math.round(change);
+  if (rounded === 0) return <span className="delta delta-flat">— 0%</span>;
+  // En la posición media, bajar es mejorar: colorearla como el resto diría
+  // justo lo contrario de lo que pasó.
+  const good = lowerIsBetter ? rounded < 0 : rounded > 0;
+  return (
+    <span className={good ? "delta delta-up" : "delta delta-down"}>
+      {rounded > 0 ? "▲" : "▼"} {Math.abs(rounded)}%
+    </span>
+  );
+}
+
+function RowsTable({
+  rows,
+  label,
+  format = (k: string) => k,
+  showPosition = true,
+  compact = false,
+}: {
+  rows: Row[];
+  label: string;
+  format?: (key: string) => string;
+  showPosition?: boolean;
+  /** Para las que van dentro de media rejilla: sin el ancho mínimo de tabla ancha. */
+  compact?: boolean;
+}) {
   if (rows.length === 0) {
     return (
       <p className="hint" style={{ marginBottom: 0 }}>
-        Sin datos todavía en este periodo.
+        Sin datos en este periodo.
       </p>
     );
   }
   return (
     <div className="table-wrap">
-      <table className="table">
+      <table className={compact ? "table table-compact" : "table"}>
         <thead>
           <tr>
             <th>{label}</th>
             <th className="num">Clics</th>
             <th className="num">Impresiones</th>
             <th className="num">CTR</th>
-            <th className="num">Posición</th>
+            {showPosition && <th className="num">Posición</th>}
           </tr>
         </thead>
         <tbody>
@@ -58,13 +134,13 @@ function RowsTable({ rows, label }: { rows: Row[]; label: string }) {
             <tr key={r.key}>
               <td style={{ maxWidth: "22rem" }}>
                 <span className="truncate" title={r.key}>
-                  {r.key}
+                  {format(r.key)}
                 </span>
               </td>
               <td className="num">{num(r.clicks)}</td>
               <td className="num">{num(r.impressions)}</td>
               <td className="num">{pct(r.ctr)}</td>
-              <td className="num">{r.position.toFixed(1)}</td>
+              {showPosition && <td className="num">{r.position.toFixed(1)}</td>}
             </tr>
           ))}
         </tbody>
@@ -80,6 +156,7 @@ function SeoContent() {
   const [sites, setSites] = useState<Site[]>([]);
   const [available, setAvailable] = useState<{ siteUrl: string }[]>([]);
   const [active, setActive] = useState<string | null>(null);
+  const [searchType, setSearchType] = useState("web");
   const [perf, setPerf] = useState<Performance | null>(null);
   const [loadingPerf, setLoadingPerf] = useState(false);
   const [error, setError] = useState(params.get("error") ?? "");
@@ -109,8 +186,9 @@ function SeoContent() {
       return;
     }
     setLoadingPerf(true);
+    setError("");
     void (async () => {
-      const res = await fetch(`/api/seo/performance?siteId=${active}`);
+      const res = await fetch(`/api/seo/performance?siteId=${active}&type=${searchType}`);
       const json = await res.json();
       setLoadingPerf(false);
       if (!res.ok) {
@@ -120,7 +198,7 @@ function SeoContent() {
       }
       setPerf(json);
     })();
-  }, [active]);
+  }, [active, searchType]);
 
   async function addSite(siteUrl: string) {
     setError("");
@@ -252,6 +330,22 @@ function SeoContent() {
             )}
           </section>
 
+          {sites.length > 0 && (
+            <div className="chips" style={{ marginBottom: "var(--s4)" }}>
+              {SEARCH_TYPES.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className="chip"
+                  aria-pressed={searchType === t.id}
+                  onClick={() => setSearchType(t.id)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {loadingPerf ? (
             <section className="card">
               <div className="skeleton" style={{ width: "50%" }} />
@@ -260,22 +354,34 @@ function SeoContent() {
             <>
               <div className="kpis">
                 <div className="kpi">
-                  <div className="kpi-head" />
+                  <div className="kpi-head">
+                    <Delta current={perf.totals.clicks} previous={perf.previous.clicks} />
+                  </div>
                   <div className="value">{num(perf.totals.clicks)}</div>
                   <div className="label">Clics · 28 días</div>
                 </div>
                 <div className="kpi">
-                  <div className="kpi-head" />
+                  <div className="kpi-head">
+                    <Delta current={perf.totals.impressions} previous={perf.previous.impressions} />
+                  </div>
                   <div className="value">{num(perf.totals.impressions)}</div>
                   <div className="label">Impresiones</div>
                 </div>
                 <div className="kpi">
-                  <div className="kpi-head" />
+                  <div className="kpi-head">
+                    <Delta current={perf.totals.ctr} previous={perf.previous.ctr} />
+                  </div>
                   <div className="value">{pct(perf.totals.ctr)}</div>
                   <div className="label">CTR medio</div>
                 </div>
                 <div className="kpi">
-                  <div className="kpi-head" />
+                  <div className="kpi-head">
+                    <Delta
+                      current={perf.totals.position}
+                      previous={perf.previous.position}
+                      lowerIsBetter
+                    />
+                  </div>
                   <div className="value">{perf.totals.position.toFixed(1)}</div>
                   <div className="label">Posición media</div>
                 </div>
@@ -300,25 +406,59 @@ function SeoContent() {
                 </section>
               )}
 
-              <section className="card">
-                <h2 className="card-title">Qué buscan para encontrarte</h2>
-                <div style={{ marginTop: "var(--s3)" }}>
-                  <RowsTable rows={perf.queries} label="Búsqueda" />
-                </div>
-              </section>
+              {/* Discover y Noticias no tienen consultas: es un feed, nadie
+                  escribe nada. La sección no se pinta en vez de enseñar una
+                  tabla vacía que parecería un fallo. */}
+              {perf.queries.length > 0 && (
+                <section className="card">
+                  <h2 className="card-title">Qué buscan para encontrarte</h2>
+                  <div style={{ marginTop: "var(--s3)" }}>
+                    <RowsTable rows={perf.queries} label="Búsqueda" />
+                  </div>
+                </section>
+              )}
 
               <section className="card">
-                <h2 className="card-title">Páginas que más entran</h2>
+                <h2 className="card-title">Contenido que más entra</h2>
                 <div style={{ marginTop: "var(--s3)" }}>
                   <RowsTable rows={perf.pages} label="Página" />
                 </div>
               </section>
 
+              <div className="grid-2">
+                <section className="card">
+                  <h2 className="card-title">Dispositivo</h2>
+                  <div style={{ marginTop: "var(--s3)" }}>
+                    <RowsTable
+                      rows={perf.devices}
+                      label="Dispositivo"
+                      format={(k) => DEVICE_LABEL[k] ?? k}
+                      showPosition={false}
+                      compact
+                    />
+                  </div>
+                </section>
+
+                <section className="card">
+                  <h2 className="card-title">País</h2>
+                  <div style={{ marginTop: "var(--s3)" }}>
+                    <RowsTable
+                      rows={perf.countries}
+                      label="País"
+                      format={countryName}
+                      showPosition={false}
+                      compact
+                    />
+                  </div>
+                </section>
+              </div>
+
               <p className="hint">
-                Últimos 28 días, hasta hace tres: Search Console tarda un par de días en
-                consolidar, y pedir hasta hoy devolvería los últimos días a cero como si
-                hubieras caído en picado. La posición media es la del resultado en Google —
-                cuanto más baja, mejor.
+                Últimos 28 días, hasta hace tres, comparados con los 28 anteriores: Search
+                Console tarda un par de días en consolidar, y pedir hasta hoy devolvería los
+                últimos días a cero como si hubieras caído en picado. La posición media es la
+                del resultado en Google — cuanto más baja, mejor, y por eso su flecha va al
+                revés que las demás.
               </p>
             </>
           ) : (

@@ -1243,6 +1243,13 @@ textarea {
   min-width: 40rem;
 }
 
+/* Tabla de pocas columnas y valores cortos (dispositivo, país). El mínimo de
+   40rem está pensado para tablas anchas; dentro de media rejilla obliga a
+   scrollar horizontalmente algo que cabe de sobra. */
+.table-compact {
+  min-width: 0;
+}
+
 .table th {
   text-align: left;
   font-size: 0.6875rem;
