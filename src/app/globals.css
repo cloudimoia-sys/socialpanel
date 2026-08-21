@@ -192,14 +192,52 @@ code {
   margin-top: var(--s4);
 }
 
+/* Es un <button> y no un rótulo: pliega el grupo. Se mantiene el aspecto de
+   rótulo (no parece un botón) a propósito — lo que importa visualmente sigue
+   siendo separar bloques, plegar es secundario. */
 .nav-group-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  width: 100%;
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--text-faint);
-  padding: 0 var(--s3);
-  margin-bottom: var(--s2);
+  padding: var(--s1) var(--s3);
+  margin-bottom: var(--s1);
+  background: none;
+  border: none;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: var(--r1);
+  transition: color 140ms ease, background 140ms ease;
+}
+
+.nav-group-label:hover {
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+
+.nav-group-label .chev {
+  width: 0.85rem;
+  height: 0.85rem;
+  /* Apunta a la derecha cuando está plegado; gira hacia abajo al abrirse. */
+  transform: rotate(-90deg);
+  transition: transform 160ms ease;
+}
+
+.nav-group-label .chev-open {
+  transform: rotate(0deg);
+}
+
+/* Grupo plegado. `display: none` (y no visibility/altura 0) para que los
+   enlaces salgan también del árbol de accesibilidad, en coherencia con el
+   aria-expanded="false" del botón. */
+.nav-group[data-collapsed] .navlink {
+  display: none;
 }
 
 .navlink {
@@ -298,6 +336,12 @@ main.main-wide {
 
   .nav-group-label {
     display: none;
+  }
+
+  /* Aquí no hay botón de plegar (el rótulo está oculto), así que un grupo
+     plegado en escritorio dejaría enlaces inalcanzables: se fuerzan visibles. */
+  .sidebar .nav-group[data-collapsed] .navlink {
+    display: flex;
   }
 
   .navlink {

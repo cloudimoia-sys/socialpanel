@@ -2,17 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { IconAlert, IconCheck } from "@/app/icons";
-
-interface Plan {
-  id: string;
-  name: string;
-  priceCents: number;
-  posts: number;
-  images: number;
-  videoSeconds: number;
-  networks: number;
-  budgetCents: number;
-}
+// El tipo real del dominio, no una copia a mano: `plans.ts` no importa nada
+// (es dato puro), así que puede cruzar al cliente sin arrastrar el servidor.
+// La copia que había aquí se quedó desfasada en cuanto las cuotas pasaron a
+// agruparse por módulo, y el typecheck no podía avisar de la diferencia.
+import type { Plan } from "@/domain/plans";
 
 interface Billing {
   plan: Plan;
@@ -150,12 +144,12 @@ export default function BillingPage() {
         )}
 
         <div style={{ marginTop: "var(--s4)" }}>
-          <Bar used={data.usage.posts} total={data.plan.posts} label="Publicaciones" />
-          <Bar used={data.usage.images} total={data.plan.images} label="Imágenes" />
-          {data.plan.videoSeconds > 0 && (
+          <Bar used={data.usage.posts} total={data.plan.social.posts} label="Publicaciones" />
+          <Bar used={data.usage.images} total={data.plan.social.images} label="Imágenes" />
+          {data.plan.social.videoSeconds > 0 && (
             <Bar
               used={Math.round(data.usage.videoSeconds)}
-              total={data.plan.videoSeconds}
+              total={data.plan.social.videoSeconds}
               label="Segundos de vídeo"
             />
           )}
@@ -195,18 +189,31 @@ export default function BillingPage() {
 
                 <ul className="list" style={{ marginTop: "var(--s3)" }}>
                   <li>
-                    <IconCheck className="" /> {p.posts} publicaciones al mes
+                    <IconCheck className="" /> {p.social.posts} publicaciones al mes
                   </li>
                   <li>
-                    <IconCheck className="" /> {p.images} imágenes
+                    <IconCheck className="" /> {p.social.images} imágenes
                   </li>
                   <li>
                     <IconCheck className="" />{" "}
-                    {p.videoSeconds > 0 ? `${p.videoSeconds} s de vídeo` : "Sin vídeo"}
+                    {p.social.videoSeconds > 0 ? `${p.social.videoSeconds} s de vídeo` : "Sin vídeo"}
                   </li>
                   <li>
-                    <IconCheck className="" /> {p.networks} redes conectadas
+                    <IconCheck className="" /> {p.social.networks} redes conectadas
                   </li>
+                  {/* Módulos de pago aparte del núcleo. Solo se listan los que
+                      ese plan incluye de verdad: prometer aquí un módulo que
+                      todavía no existe es vender lo que no se puede usar. */}
+                  {p.seo && (
+                    <li>
+                      <IconCheck className="" /> SEO: {p.seo.trackedKeywords} keywords rastreadas
+                    </li>
+                  )}
+                  {p.email && (
+                    <li>
+                      <IconCheck className="" /> Email: {p.email.sends.toLocaleString("es-ES")} envíos al mes
+                    </li>
+                  )}
                 </ul>
 
                 {!current && (

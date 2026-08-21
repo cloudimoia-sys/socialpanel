@@ -1,6 +1,13 @@
 import { AppError } from "@/lib/logger";
 import { adminClient } from "@/lib/supabase";
-import { planFor, TRIAL_BUDGET_CENTS, type Plan } from "./plans";
+import {
+  MODULE_LABEL,
+  moduleEnabled,
+  planFor,
+  TRIAL_BUDGET_CENTS,
+  type ModuleId,
+  type Plan,
+} from "./plans";
 
 /**
  * Cuotas por plan.
@@ -122,32 +129,61 @@ export async function assertQuota(
     );
   }
 
-  if (kind === "post" && usage.posts >= plan.posts) {
+  if (kind === "post" && usage.posts >= plan.social.posts) {
     throw new AppError(
-      `Has agotado las ${plan.posts} publicaciones del plan ${plan.name} este mes.`,
+      `Has agotado las ${plan.social.posts} publicaciones del plan ${plan.name} este mes.`,
       402,
     );
   }
 
-  if (kind === "image" && usage.images >= plan.images) {
+  if (kind === "image" && usage.images >= plan.social.images) {
     throw new AppError(
-      `Has agotado las ${plan.images} imágenes del plan ${plan.name} este mes.`,
+      `Has agotado las ${plan.social.images} imágenes del plan ${plan.name} este mes.`,
       402,
     );
   }
 
   if (kind === "video") {
-    if (plan.videoSeconds === 0) {
+    if (plan.social.videoSeconds === 0) {
       throw new AppError(`El plan ${plan.name} no incluye generación de vídeo.`, 402);
     }
-    if (usage.videoSeconds + videoSeconds > plan.videoSeconds) {
-      const left = Math.max(0, plan.videoSeconds - usage.videoSeconds);
+    if (usage.videoSeconds + videoSeconds > plan.social.videoSeconds) {
+      const left = Math.max(0, plan.social.videoSeconds - usage.videoSeconds);
       throw new AppError(
         `Te quedan ${left} s de vídeo este mes en el plan ${plan.name}.`,
         402,
       );
     }
   }
+}
+
+/**
+ * Corta si el plan del tenant no incluye ese módulo.
+ *
+ * Es la primera línea de CADA endpoint de un módulo de pago, antes de tocar
+ * nada: ocultar la sección en el menú no es control de acceso, la URL sigue
+ * siendo alcanzable a mano. Se comprueba aquí y no en la interfaz por la
+ * misma razón que el rate limiting vive en el backend.
+ */
+export async function assertModule(tenantId: string, module: ModuleId): Promise<void> {
+  const { plan, active } = await tenantPlan(tenantId);
+
+  if (!active) {
+    throw new AppError("Tu suscripción no está activa.", 402);
+  }
+
+  if (!moduleEnabled(plan, module)) {
+    throw new AppError(
+      `El plan ${plan.name} no incluye ${MODULE_LABEL[module]}. Cambia de plan para activarlo.`,
+      402,
+    );
+  }
+}
+
+/** Si el plan del tenant incluye un módulo. Para decidir qué pintar, no para autorizar. */
+export async function tenantModules(tenantId: string): Promise<ModuleId[]> {
+  const { plan } = await tenantPlan(tenantId);
+  return (["social", "seo", "email"] as const).filter((m) => moduleEnabled(plan, m));
 }
 
 /** Cuántas redes puede conectar todavía. */
@@ -159,9 +195,9 @@ export async function assertNetworkQuota(tenantId: string): Promise<void> {
     .select("id", { count: "exact", head: true })
     .eq("tenant_id", tenantId);
 
-  if ((count ?? 0) >= plan.networks) {
+  if ((count ?? 0) >= plan.social.networks) {
     throw new AppError(
-      `El plan ${plan.name} permite ${plan.networks} redes conectadas.`,
+      `El plan ${plan.name} permite ${plan.social.networks} redes conectadas.`,
       402,
     );
   }

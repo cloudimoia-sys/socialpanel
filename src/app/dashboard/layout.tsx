@@ -4,6 +4,7 @@ import { Credit } from "@/app/credit";
 import { IconLogout } from "@/app/icons";
 import { NavLinks } from "@/app/dashboard/nav";
 import { TenantSwitcher } from "@/app/dashboard/tenant-switcher";
+import { tenantModules } from "@/domain/quota";
 import { isPlatformAdmin } from "@/lib/admin";
 import { AppError } from "@/lib/logger";
 import { currentTenant, listMyTenants } from "@/lib/tenant";
@@ -40,6 +41,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   // que solo importaría si hubiera selector que pintar.
   const tenants = tenant ? await listMyTenants() : [];
 
+  // Qué módulos incluye su plan. Igual que `admin`: decide qué se PINTA, no
+  // qué se puede usar — de eso se encarga `assertModule()` en cada endpoint.
+  const modules = tenant ? await tenantModules(tenant.tenantId) : ["social" as const];
+
   return (
     <div className="shell">
       <aside className="sidebar">
@@ -54,7 +59,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <TenantSwitcher tenants={tenants} activeId={tenant.tenantId} />
         )}
 
-        <NavLinks admin={admin} />
+        <NavLinks admin={admin} modules={modules} />
 
         <div className="sidebar-foot">
           <form action="/auth/signout" method="post">

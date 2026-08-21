@@ -208,6 +208,12 @@ export const IconTarget = (p: Props) => (
   </svg>
 );
 
+export const IconChevron = (p: Props) => (
+  <svg {...base} {...p}>
+    <path d="M6 9l6 6 6-6" />
+  </svg>
+);
+
 export const IconFunnel = (p: Props) => (
   <svg {...base} {...p}>
     <path d="M4 4h16l-6 8v6l-4 2v-8L4 4Z" />
