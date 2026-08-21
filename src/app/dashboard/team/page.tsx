@@ -1,13 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { IconAlert } from "@/app/icons";
+import { IconAlert, IconPlus } from "@/app/icons";
 
 interface Member {
   userId: string;
   role: "owner" | "admin" | "member";
   email: string;
   isMe: boolean;
+}
+
+interface Invitation {
+  id: string;
+  email: string;
+  role: "admin" | "member";
+  created_at: string;
 }
 
 const ROLE_LABEL: Record<Member["role"], string> = {
@@ -18,9 +25,15 @@ const ROLE_LABEL: Record<Member["role"], string> = {
 
 export default function TeamPage() {
   const [members, setMembers] = useState<Member[] | null>(null);
+  const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [myRole, setMyRole] = useState<Member["role"] | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+
+  const [showInvite, setShowInvite] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"admin" | "member">("member");
+  const [inviting, setInviting] = useState(false);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/team");
@@ -30,6 +43,7 @@ export default function TeamPage() {
       return;
     }
     setMembers(json.members);
+    setInvitations(json.invitations ?? []);
     setMyRole(json.myRole);
   }, []);
 
@@ -51,6 +65,44 @@ export default function TeamPage() {
 
     if (!res.ok) {
       setError(json.error ?? "No se pudo cambiar el rol.");
+      return;
+    }
+    await load();
+  }
+
+  async function invite(event: React.FormEvent) {
+    event.preventDefault();
+    setInviting(true);
+    setError("");
+
+    const res = await fetch("/api/team", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
+    });
+    const json = await res.json();
+    setInviting(false);
+
+    if (!res.ok) {
+      setError(json.error ?? "No se pudo invitar.");
+      return;
+    }
+    setInviteEmail("");
+    setInviteRole("member");
+    setShowInvite(false);
+    await load();
+  }
+
+  async function cancelInvitation(id: string) {
+    setBusy(id);
+    setError("");
+
+    const res = await fetch(`/api/team?invitationId=${id}`, { method: "DELETE" });
+    const json = await res.json();
+    setBusy(null);
+
+    if (!res.ok) {
+      setError(json.error ?? "No se pudo cancelar la invitación.");
       return;
     }
     await load();
@@ -140,10 +192,86 @@ export default function TeamPage() {
         )}
       </section>
 
-      <p className="hint">
-        Invitar a alguien nuevo todavía no tiene botón aquí: solo entra quien ya tenga
-        cuenta y ya pertenezca a este equipo. Dilo si lo necesitas y lo añadimos.
-      </p>
+      {canManage && (
+        <>
+          {!showInvite ? (
+            <button type="button" className="btn" onClick={() => setShowInvite(true)}>
+              <IconPlus />
+              Invitar a alguien
+            </button>
+          ) : (
+            <form onSubmit={invite} className="card">
+              <h2 className="card-title">Invitar a alguien</h2>
+              <div className="row">
+                <div className="field" style={{ flex: 2 }}>
+                  <label htmlFor="inviteEmail">Correo electrónico</label>
+                  <input
+                    id="inviteEmail"
+                    type="email"
+                    required
+                    autoFocus
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="persona@empresa.com"
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="inviteRole">Rol</label>
+                  <select
+                    id="inviteRole"
+                    value={inviteRole}
+                    onChange={(e) => setInviteRole(e.target.value as "admin" | "member")}
+                  >
+                    <option value="member">Miembro</option>
+                    <option value="admin">Administrador</option>
+                  </select>
+                </div>
+              </div>
+              <p className="hint">
+                No se envía ningún correo automático: avísale tú. Entrará a este equipo al
+                registrarse o iniciar sesión con ese mismo correo.
+              </p>
+              <div className="actions" style={{ marginTop: "var(--s4)" }}>
+                <button type="submit" className="btn" disabled={inviting}>
+                  {inviting ? "Invitando…" : "Invitar"}
+                </button>
+                <button type="button" className="btn btn-ghost" onClick={() => setShowInvite(false)}>
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          )}
+        </>
+      )}
+
+      {invitations.length > 0 && (
+        <section className="card">
+          <h2 className="card-title">Invitaciones pendientes</h2>
+          <ul className="list">
+            {invitations.map((i) => (
+              <li key={i.id}>
+                <strong className="truncate">{i.email}</strong>
+                <span className="spacer" style={{ display: "flex", alignItems: "center", gap: "var(--s3)" }}>
+                  <span className="badge">{ROLE_LABEL[i.role]}</span>
+                  {canManage && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      disabled={busy === i.id}
+                      onClick={() => cancelInvitation(i.id)}
+                    >
+                      Cancelar
+                    </button>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="hint" style={{ marginBottom: 0 }}>
+            Se convierten en acceso real en cuanto esa persona entra con ese correo.
+          </p>
+        </section>
+      )}
     </main>
   );
 }

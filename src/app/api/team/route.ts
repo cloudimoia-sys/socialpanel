@@ -47,7 +47,60 @@ export async function GET() {
       }),
     );
 
-    return { members: withEmail, myRole: tenant.role };
+    // Invitaciones pendientes: van por userClient() igual que el resto, así
+    // que RLS (owner/admin del tenant) es quien decide si se ven.
+    const { data: invitations } = await supabase
+      .from("team_invitations")
+      .select("id, email, role, created_at")
+      .eq("tenant_id", tenant.tenantId)
+      .is("accepted_at", null)
+      .order("created_at", { ascending: true });
+
+    return { members: withEmail, invitations: invitations ?? [], myRole: tenant.role };
+  });
+}
+
+const inviteSchema = z.object({
+  email: z.string().email().max(200),
+  // Nunca 'owner': una invitación no puede fabricar un segundo propietario,
+  // mismo límite que impone el CHECK de la tabla y memberships_write.
+  role: z.enum(["admin", "member"]).default("member"),
+});
+
+/**
+ * Invita a alguien al equipo de este tenant.
+ *
+ * No manda ningún correo — la aplicación no tiene proveedor de email, igual
+ * que las invitaciones de plataforma. Quien invita avisa por su cuenta; la
+ * invitación se canjea sola cuando esa persona entra con ese mismo correo
+ * (`ensure_tenant`, 0020_team_invitations.sql).
+ */
+export async function POST(request: Request) {
+  return run(async () => {
+    const body = inviteSchema.parse(await request.json());
+    const tenant = await requireCurrentTenant();
+    requireTenantRole(tenant, ["owner", "admin"]);
+
+    const email = body.email.toLowerCase().trim();
+    const supabase = await userClient();
+
+    const { error } = await supabase.from("team_invitations").insert({
+      tenant_id: tenant.tenantId,
+      email,
+      role: body.role,
+      invited_by: tenant.userId,
+    });
+
+    if (error) {
+      // El índice parcial solo bloquea invitaciones PENDIENTES duplicadas:
+      // reinvitar a quien ya la aceptó (y luego se quitó del equipo) sí vale.
+      if (error.code === "23505") {
+        throw new AppError("Ya hay una invitación pendiente para ese correo.", 409);
+      }
+      throw new AppError("No se pudo crear la invitación.", 500, error.message);
+    }
+
+    return { email, role: body.role };
   });
 }
 
@@ -109,9 +162,28 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   return run(async () => {
-    const userId = z.string().uuid().parse(new URL(request.url).searchParams.get("userId"));
+    const params = new URL(request.url).searchParams;
     const tenant = await requireCurrentTenant();
     requireTenantRole(tenant, ["owner", "admin"]);
+
+    // Cancelar una invitación pendiente es otra cosa que quitar a un miembro:
+    // la persona todavía no existe en `memberships`, así que no hay rol que
+    // comprobar ni riesgo de dejar el tenant sin propietario.
+    const invitationId = params.get("invitationId");
+    if (invitationId) {
+      const id = z.string().uuid().parse(invitationId);
+      const { error, count } = await (await userClient())
+        .from("team_invitations")
+        .delete({ count: "exact" })
+        .eq("id", id)
+        .eq("tenant_id", tenant.tenantId);
+
+      if (error) throw new AppError("No se pudo cancelar la invitación.", 500, error.message);
+      if (!count) throw new AppError("Esa invitación ya no existe.", 404);
+      return { invitationId: id };
+    }
+
+    const userId = z.string().uuid().parse(params.get("userId"));
 
     if (userId === tenant.userId) {
       throw new AppError("No puedes quitarte a ti mismo. Pídeselo a otro propietario.", 400);

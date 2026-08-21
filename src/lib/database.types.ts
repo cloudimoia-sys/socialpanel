@@ -159,6 +159,17 @@ export type UsageEvent = {
   created_at: Timestamptz;
 };
 
+export type TeamInvitation = {
+  id: string;
+  tenant_id: string;
+  email: string;
+  role: "admin" | "member";
+  invited_by: string | null;
+  created_at: Timestamptz;
+  accepted_at: Timestamptz | null;
+  accepted_by: string | null;
+};
+
 export type LeadStatus = "nuevo" | "contactado" | "presupuesto" | "ganado" | "perdido";
 
 export type Lead = {
@@ -320,6 +331,10 @@ export type Database = {
       >;
       competitors: Table<Competitor, Pick<Competitor, "tenant_id" | "platform" | "handle"> & Partial<Competitor>>;
       leads: Table<Lead, Pick<Lead, "tenant_id"> & Partial<Lead>>;
+      team_invitations: Table<
+        TeamInvitation,
+        Pick<TeamInvitation, "tenant_id" | "email"> & Partial<TeamInvitation>
+      >;
       competitor_snapshots: Table<
         CompetitorSnapshot,
         Pick<CompetitorSnapshot, "competitor_id" | "tenant_id"> & Partial<CompetitorSnapshot>
