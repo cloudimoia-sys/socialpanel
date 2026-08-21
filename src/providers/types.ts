@@ -107,11 +107,46 @@ export interface CaptionResult {
   cost: Cost;
 }
 
+/**
+ * Content Studio: de UN brief a una pieza adaptada por red, no la misma
+ * frase recortada (eso ya lo hace `perPlatform` de generateCaption). Aquí
+ * TikTok recibe un guion, YouTube un título+descripción, LinkedIn un post
+ * largo — cada uno en el formato que esa red espera de verdad.
+ */
+export interface StudioRequest {
+  brief: string;
+  platforms: string[];
+  language: string;
+  brand?: string;
+}
+
+export interface StudioPiece {
+  platform: string;
+  /** Texto del post. Vacío cuando la red usa `script` en su lugar. */
+  copy: string;
+  /** Guion corto, para redes de vídeo (TikTok, Reels). */
+  script?: string;
+  /** Solo YouTube: título aparte de la descripción (que va en `copy`). */
+  title?: string;
+  hashtags: string[];
+  cta: string;
+}
+
+export interface StudioResult {
+  pieces: StudioPiece[];
+  /** Una idea de imagen y una de vídeo para todo el brief, no por red. */
+  imageIdea: string;
+  videoIdea: string;
+  cost: Cost;
+}
+
 export interface LLMProvider {
   readonly name: string;
   generateCaption(req: CaptionRequest, cred: Credential): Promise<CaptionResult>;
   /** Propone un lote de ideas para un periodo, a partir de la marca. */
   generatePlan(req: PlanRequest, cred: Credential): Promise<PlanResult>;
+  /** Adapta un único brief a una pieza por red (Content Studio). */
+  generateStudio(req: StudioRequest, cred: Credential): Promise<StudioResult>;
 }
 
 // -----------------------------------------------------------------------------

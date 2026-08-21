@@ -8,14 +8,19 @@ import type {
   LLMProvider,
   PlanRequest,
   PlanResult,
+  StudioRequest,
+  StudioResult,
 } from "../types";
 import {
   CAPTION_SYSTEM,
   PLAN_SYSTEM,
+  STUDIO_SYSTEM,
   captionPrompt,
   parseCaption,
   parsePlan,
+  parseStudio,
   planPrompt,
+  studioPrompt,
 } from "./prompts";
 
 // Precio por millón de tokens, en céntimos de euro (aprox.). Para medir consumo.
@@ -63,5 +68,12 @@ export class AnthropicLLM implements LLMProvider {
   async generatePlan(req: PlanRequest, cred: Credential): Promise<PlanResult> {
     const { text, cost } = await this.call(PLAN_SYSTEM, planPrompt(req), 8000, cred);
     return { ideas: parsePlan(text, req.news ?? []), cost };
+  }
+
+  async generateStudio(req: StudioRequest, cred: Credential): Promise<StudioResult> {
+    // Más margen que un caption suelto: aquí es una pieza completa por cada
+    // red pedida, hasta nueve a la vez.
+    const { text, cost } = await this.call(STUDIO_SYSTEM, studioPrompt(req), 4000, cred);
+    return { ...parseStudio(text, req.platforms), cost };
   }
 }

@@ -16,6 +16,7 @@ import {
   IconMail,
   IconPlus,
   IconShare,
+  IconSparkle,
   IconUsers,
 } from "@/app/icons";
 
@@ -36,6 +37,7 @@ const GROUPS = [
       { href: "/dashboard/calendar", label: "Calendario", Icon: IconCalendar },
       { href: "/dashboard/plan", label: "Plan", Icon: IconInbox },
       { href: "/dashboard/new", label: "Nuevo post", Icon: IconPlus },
+      { href: "/dashboard/studio", label: "Content Studio", Icon: IconSparkle },
       { href: "/dashboard/queue", label: "Cola", Icon: IconList },
       { href: "/dashboard/content", label: "Contenido", Icon: IconFolder },
       { href: "/dashboard/kanban", label: "Tablero", Icon: IconLayout },

@@ -1,6 +1,6 @@
 import { LIMITS_BY_PLATFORM } from "@/domain/platform-rules";
 import { AppError } from "@/lib/logger";
-import type { CaptionRequest, NewsItem, PlanIdea, PlanRequest } from "../types";
+import type { CaptionRequest, NewsItem, PlanIdea, PlanRequest, StudioPiece, StudioRequest } from "../types";
 
 /**
  * Prompts compartidos por todos los proveedores de texto.
@@ -84,6 +84,92 @@ Devuelves SIEMPRE un único objeto JSON válido, sin markdown ni texto alrededor
       office, warm afternoon light, shallow depth of field, documentary style".
     * Ejemplo INCORRECTO: "infographic showing 4 signs your company outgrew
       Excel" — eso es un póster, no una foto.`;
+
+export const STUDIO_SYSTEM = `Eres el redactor de redes sociales de un negocio concreto. A partir de UN
+único brief, adaptas el mensaje al formato real de cada red — no es la misma
+frase recortada, cada red tiene su propio texto pensado para cómo se consume
+ahí.
+
+Mismas prohibiciones que siempre: nada de "¿Sabías que...?", "Descubre" ni
+entusiasmo de folleto. Frases cortas, detalles concretos por encima de
+adjetivos. Cada pieza suena a este negocio, no a una IA genérica.
+
+Devuelves SIEMPRE un único objeto JSON válido, sin markdown ni texto alrededor:
+{"pieces": [{"platform": string, "copy": string, "script": string, "title": string,
+"hashtags": string[], "cta": string}], "imageIdea": string, "videoIdea": string}
+
+Una entrada en "pieces" por cada red pedida, con "platform" exactamente como
+se te dio. Según la red:
+- instagram, facebook, linkedin, threads, pinterest, bluesky, x: usa "copy"
+  (el post completo, respetando el límite de caracteres de esa red) y deja
+  "script" y "title" vacíos ("").
+- tiktok: usa "script" (guion corto de vídeo: gancho de los primeros 2
+  segundos, qué se dice o se muestra, cierre) y deja "copy" a modo de
+  descripción breve para acompañar el vídeo. "title" vacío.
+- youtube: usa "title" (menos de 70 caracteres, pensado para que hagan clic)
+  y "copy" como descripción del vídeo. "script" vacío.
+
+- "hashtags": entre 3 y 8 por red, sin almohadilla, específicos del sector.
+- "cta": una llamada a la acción concreta para esa red (comentar, guardar,
+  visitar la web, escribir por privado…), no genérica.
+- "imageIdea": UNA descripción de foto real (no póster ni infografía) que
+  sirva para todo el brief, en español, pensada para acompañar las piezas de
+  imagen.
+- "videoIdea": UNA idea de vídeo corto (qué se graba, en qué orden) que sirva
+  de base común para tiktok/reels/shorts.`;
+
+export function studioPrompt(req: StudioRequest): string {
+  const limits = req.platforms
+    .map((p) => `- ${p}: máximo ${LIMITS_BY_PLATFORM[p]?.captionMax ?? 2200} caracteres`)
+    .join("\n");
+
+  return [
+    req.brand ? `CONTEXTO DEL NEGOCIO\n${req.brand}\n` : null,
+    `Idioma: ${req.language}`,
+    `Redes pedidas y sus límites:\n${limits}`,
+    `\nBRIEF\n${req.brief}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+export function parseStudio(
+  raw: string,
+  platforms: string[],
+): { pieces: StudioPiece[]; imageIdea: string; videoIdea: string } {
+  const obj = cleanJson(raw) as { pieces?: unknown[]; imageIdea?: unknown; videoIdea?: unknown };
+  if (!Array.isArray(obj.pieces)) {
+    throw new AppError("El modelo no devolvió ningún contenido.", 502);
+  }
+
+  const byPlatform = new Map(
+    obj.pieces.map((entry) => {
+      const p = entry as Record<string, unknown>;
+      return [String(p.platform ?? ""), p];
+    }),
+  );
+
+  // Una pieza por red PEDIDA, en ese orden — si el modelo se salta una o
+  // inventa una que no se pidió, la interfaz no debe mostrar un hueco raro
+  // ni una red de más.
+  const pieces = platforms.map((platform) => {
+    const p = byPlatform.get(platform) ?? {};
+    return {
+      platform,
+      copy: String(p.copy ?? ""),
+      script: String(p.script ?? "") || undefined,
+      title: String(p.title ?? "") || undefined,
+      hashtags: Array.isArray(p.hashtags) ? p.hashtags.map(String) : [],
+      cta: String(p.cta ?? ""),
+    };
+  });
+
+  return {
+    pieces,
+    imageIdea: String(obj.imageIdea ?? ""),
+    videoIdea: String(obj.videoIdea ?? ""),
+  };
+}
 
 export function captionPrompt(req: CaptionRequest): string {
   const limits = req.platforms

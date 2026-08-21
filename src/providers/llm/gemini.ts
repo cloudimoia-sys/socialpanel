@@ -8,14 +8,19 @@ import type {
   LLMProvider,
   PlanRequest,
   PlanResult,
+  StudioRequest,
+  StudioResult,
 } from "../types";
 import {
   CAPTION_SYSTEM,
   PLAN_SYSTEM,
+  STUDIO_SYSTEM,
   captionPrompt,
   parseCaption,
   parsePlan,
+  parseStudio,
   planPrompt,
+  studioPrompt,
 } from "./prompts";
 
 /**
@@ -70,6 +75,30 @@ const PLAN_SCHEMA = {
     },
   },
   required: ["ideas"],
+};
+
+const STUDIO_SCHEMA = {
+  type: "object",
+  properties: {
+    pieces: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          platform: { type: "string" },
+          copy: { type: "string" },
+          script: { type: "string" },
+          title: { type: "string" },
+          hashtags: { type: "array", items: { type: "string" } },
+          cta: { type: "string" },
+        },
+        required: ["platform", "copy", "script", "title", "hashtags", "cta"],
+      },
+    },
+    imageIdea: { type: "string" },
+    videoIdea: { type: "string" },
+  },
+  required: ["pieces", "imageIdea", "videoIdea"],
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -189,5 +218,16 @@ export class GeminiLLM implements LLMProvider {
       cred,
     );
     return { ideas: parsePlan(text, req.news ?? []), cost };
+  }
+
+  async generateStudio(req: StudioRequest, cred: Credential): Promise<StudioResult> {
+    const { text, cost } = await this.call(
+      STUDIO_SYSTEM,
+      studioPrompt(req),
+      STUDIO_SCHEMA,
+      4000,
+      cred,
+    );
+    return { ...parseStudio(text, req.platforms), cost };
   }
 }
