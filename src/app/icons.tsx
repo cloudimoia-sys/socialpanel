@@ -193,3 +193,17 @@ export const IconSparkle = (p: Props) => (
     <path d="M8 8l1.5 1.5M14.5 14.5 16 16M16 8l-1.5 1.5M9.5 14.5 8 16" />
   </svg>
 );
+
+export const IconTrash = (p: Props) => (
+  <svg {...base} {...p}>
+    <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" />
+  </svg>
+);
+
+export const IconTarget = (p: Props) => (
+  <svg {...base} {...p}>
+    <circle cx="12" cy="12" r="8" />
+    <circle cx="12" cy="12" r="4" />
+    <circle cx="12" cy="12" r="0.5" fill="currentColor" />
+  </svg>
+);

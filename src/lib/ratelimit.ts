@@ -60,6 +60,9 @@ export const LIMITS = {
   // cubo propio para que generar informes en bucle no comparta límite con la
   // generación de contenido, que es lo que de verdad protege el presupuesto.
   report: { limit: 20, window: "1 h", ms: 3_600_000 },
+  // La consulta a la API de YouTube es gratis pero tiene cuota diaria propia:
+  // un cubo aparte evita que alguien la agote a base de pulsar "Actualizar".
+  competitor: { limit: 30, window: "1 h", ms: 3_600_000 },
 } as const;
 
 export async function enforceRateLimit(

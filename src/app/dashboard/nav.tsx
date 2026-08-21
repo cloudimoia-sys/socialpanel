@@ -17,6 +17,7 @@ import {
   IconPlus,
   IconShare,
   IconSparkle,
+  IconTarget,
   IconUsers,
 } from "@/app/icons";
 
@@ -48,6 +49,7 @@ const GROUPS = [
     label: "Inteligencia",
     links: [
       { href: "/dashboard/metrics", label: "Métricas", Icon: IconChart },
+      { href: "/dashboard/competitors", label: "Competidores", Icon: IconTarget },
       { href: "/dashboard/reports", label: "Informes", Icon: IconDocument },
     ],
   },

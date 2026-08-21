@@ -159,6 +159,29 @@ export type UsageEvent = {
   created_at: Timestamptz;
 };
 
+export type Competitor = {
+  id: string;
+  tenant_id: string;
+  platform: string;
+  handle: string;
+  display_name: string | null;
+  created_by: string | null;
+  created_at: Timestamptz;
+};
+
+export type CompetitorSnapshot = {
+  id: string;
+  competitor_id: string;
+  tenant_id: string;
+  snapshot_date: string;
+  followers: number | null;
+  posts_per_week: number | null;
+  best_format: string | null;
+  notes: string | null;
+  source: "manual" | "youtube_api";
+  created_at: Timestamptz;
+};
+
 export type MetricSnapshot = {
   id: string;
   tenant_id: string;
@@ -276,6 +299,11 @@ export type Database = {
       metric_snapshots: Table<
         MetricSnapshot,
         Omit<MetricSnapshot, "id" | "created_at"> & Partial<MetricSnapshot>
+      >;
+      competitors: Table<Competitor, Pick<Competitor, "tenant_id" | "platform" | "handle"> & Partial<Competitor>>;
+      competitor_snapshots: Table<
+        CompetitorSnapshot,
+        Pick<CompetitorSnapshot, "competitor_id" | "tenant_id"> & Partial<CompetitorSnapshot>
       >;
       audit_log: Table<AuditLog, Pick<AuditLog, "action"> & Partial<AuditLog>>;
       processed_webhooks: Table<ProcessedWebhook, Pick<ProcessedWebhook, "id"> & Partial<ProcessedWebhook>>;

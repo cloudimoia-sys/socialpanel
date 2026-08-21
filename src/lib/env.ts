@@ -30,6 +30,10 @@ const serverSchema = z.object({
   CLOUDFLARE_API_TOKEN: z.string().optional(),
   CLOUDFLARE_ACCOUNT_ID: z.string().optional(),
   UPLOAD_POST_API_KEY: z.string().optional(),
+  // API oficial de YouTube (gratis, cuota diaria). Sin ella, el seguimiento de
+  // competidores en YouTube sigue funcionando en modo manual, igual que
+  // TikTok/Instagram/LinkedIn.
+  YOUTUBE_API_KEY: z.string().optional(),
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 
